@@ -84,8 +84,9 @@ app.get("/api/series", async (c) => {
 app.get("/api/health", async (c) => {
   if (!rawtreeEnabled()) return c.json({ sources: localHealth(storyOf(c)) });
   const s = sqlStory(storyOf(c));
-  const rows = await q(`SELECT source_id, url, kind, healthy, fail_count, last_ok, last_error FROM source_health WHERE story = ${s} AND cycle = (SELECT max(cycle) FROM source_health WHERE story = ${s}) ORDER BY source_id LIMIT 200`);
-  return c.json({ sources: rows });
+  const rows = await q<{ source_id: string }>(`SELECT source_id, url, kind, healthy, fail_count, last_ok, last_error FROM source_health WHERE story = ${s} AND cycle = (SELECT max(cycle) FROM source_health WHERE story = ${s}) ORDER BY source_id LIMIT 200`);
+  const seen = new Set<string>();
+  return c.json({ sources: rows.filter((r) => (seen.has(r.source_id) ? false : (seen.add(r.source_id), true))) });
 });
 
 app.get("/api/cards", async (c) => {
