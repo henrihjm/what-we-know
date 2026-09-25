@@ -28,7 +28,7 @@ if (!rawtreeEnabled()) {
   console.log(`cards generated      ${d.cards}\n`);
   process.exit(0);
 }
-const cyc = await one<{ cycles: number; since: string; median_ms: number; median_tokens: number; median_ledger: number }>(`SELECT count() AS cycles, min(ts) AS since, median(ms) AS median_ms, median(tokens) AS median_tokens, median(ledger_tokens) AS median_ledger FROM cycles WHERE story = ${s} AND cycle > 0 LIMIT 1`);
+const cyc = await one<{ cycles: number; since: string; median_ms: number; median_tokens: number; median_ledger: number }>(`SELECT count() AS cycles, min(ts) AS since, median(ms::Float64) AS median_ms, median(tokens::Float64) AS median_tokens, median(ledger_tokens::Float64) AS median_ledger FROM cycles WHERE story = ${s} AND cycle > 0 LIMIT 1`);
 const obs = await one(`SELECT count() AS n, countIf(ok = true) AS ok FROM observations WHERE story = ${s} LIMIT 1`);
 const tri = await rawtreeQuery<{ model: string; n: number }>(`SELECT model, count() AS n FROM triage WHERE story = ${s} GROUP BY model ORDER BY n DESC LIMIT 10`);
 const led = await one(`SELECT claims_active, claims_total, cycle FROM ledger_versions WHERE story = ${s} ORDER BY cycle DESC LIMIT 1`);
