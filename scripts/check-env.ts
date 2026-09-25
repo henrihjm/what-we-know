@@ -66,13 +66,15 @@ async function checkRawTree() {
 }
 
 async function checkTriage() {
-  const base = env.TRIAGE_BASE_URL || (env.OPENROUTER_API_KEY ? "https://openrouter.ai/api/v1" : "http://localhost:11434/v1");
   try {
-    const { triageOne, triageBackendName } = await import("../src/observe/triage.js");
+    const { triageOne, triageBackendName, triageUsesLiquid } = await import("../src/observe/triage.js");
     const r = await triageOne([{ id: "c1", text: "High wind warning in effect for Boston" }], "Boston is under a high wind warning until Saturday.");
-    push("Liquid AI", "triage", r.model.includes("fallback") ? "FAIL" : "PASS", `${triageBackendName()} -> ${r.model} said '${r.labelRaw}' (${r.ms} ms)`);
+    const detail = `${triageBackendName()} -> ${r.model} '${r.labelRaw}' ${r.ms} ms`;
+    if (r.model.includes("fallback")) push("Liquid AI", "triage", "FAIL", `Liquid backend down, ${detail}`);
+    else if (!triageUsesLiquid()) push("Liquid AI", "triage", "PASS", `${detail}; add OPENROUTER_API_KEY for Liquid`);
+    else push("Liquid AI", "triage", "PASS", detail);
   } catch (e) {
-    push("Liquid AI", "triage", "FAIL", `${base}: ${errMsg(e)}`);
+    push("Liquid AI", "triage", "FAIL", errMsg(e));
   }
 }
 

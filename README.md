@@ -47,7 +47,7 @@ Invariants: at most 60 active claims; superseded/retracted claims leave the ledg
 |---|---|---|
 | **Nimble** | `search` with `full_content: true` for planned queries; `extract.run` (rendered) for pages without an API (PowerOutage.us, FlightAware, local news, Reuters, AP...). Concurrency 4, retries, 429 backoff. | `src/act/nimble.ts` |
 | **Tinybird RawTree** | The only database. Plain HTTP inserts into `observations`, `triage`, `ledger_versions`, `corrections`, `tokens`, `source_health`, `cards`, `tickets`, `cycles`; read-only SQL for state loading, the dashboard and `demo-stats`. | `src/persist/rawtree.ts` |
-| **Liquid AI** | LFM2.5 triage model behind an OpenAI-compatible endpoint (Ollama or OpenRouter). Handles the bulk of the tokens so the big model sees only what is new or contradictory. Falls back to an OpenAI mini model with a loud warning. | `src/observe/triage.ts` |
+| **Liquid AI** | LFM2.5 triage model behind an OpenAI-compatible endpoint (OpenRouter; nothing runs locally). Handles the bulk of the tokens so the big model sees only what is new or contradictory. Without an OpenRouter key, or if OpenRouter is down, triage runs on an OpenAI mini model with a loud warning. | `src/observe/triage.ts` |
 | **OpenAI** | The merge model: one structured-output call per cycle producing the whole new ledger plus corrections, retried once with the validation error on schema failure. | `src/correct/merge.ts` |
 | **AWS** | Bedrock Converse rewrites the summary from active claims. `Dockerfile` + `deploy/ec2.md` run the loop on EC2. | `src/correct/summary.ts` |
 | **Black Forest Labs** | FLUX situation card on major changes. | `src/render/flux.ts` |

@@ -1,5 +1,6 @@
 /** OpenAI structured merge: one call per cycle, retry once on schema failure with the validation error appended. */
 import OpenAI from "openai";
+import https from "node:https";
 import { z } from "zod";
 import { env, DEFAULT_TTL, MAX_ACTIVE_CLAIMS, ttlFor } from "../config.js";
 import type { Ledger, Correction, TriagedSnippet, StoryConfig, TokenUsage, Claim } from "../types.js";
@@ -89,27 +90,37 @@ export interface MergeResult {
 
 export async function mergeLedger(story: StoryConfig, ledger: Ledger, evidence: TriagedSnippet[], nextCycle: number): Promise<MergeResult> {
   if (!env.OPENAI_API_KEY) throw new Error("OPENAI_API_KEY missing");
-  client ??= new OpenAI({ apiKey: env.OPENAI_API_KEY, maxRetries: 2, timeout: 300000 });
+  // Fresh socket per request: openai v4's keep-alive agent drops long merge calls on reused sockets ("Connection error").
+  client ??= new OpenAI({ apiKey: env.OPENAI_API_KEY, maxRetries: 2, timeout: 300000, httpAgent: new https.Agent({ keepAlive: false, timeout: 310000 }) });
   const model = openaiModel();
   const now = nowIso();
   const ttls = Object.fromEntries((Object.keys(DEFAULT_TTL) as Array<keyof typeof DEFAULT_TTL>).map((t) => [t, ttlFor(story, t)]));
   const evidenceLines = evidence.map((s) => `- [${s.label.kind}${"claimId" in s.label ? ":" + s.label.claimId : ""}] (weight ${s.weight.toFixed(2)}, fetched ${s.fetched_at}, ${s.url}) ${s.text}`).join("\n");
-  const user = `Current time: ${now}\nStory: ${story.title}\nDefault TTL minutes by type: ${JSON.stringify(ttls)}\nThis will be cycle ${nextCycle}.\n\nCURRENT LEDGER:\n${JSON.stringify(ledgerForPrompt(ledger))}\n\nNEW EVIDENCE (${evidence.length} snippets, each pre-labeled by a triage model):\n${evidenceLines || "(none this cycle: only apply TTL decay, dedup and question cleanup)"}`;
+  const ledgerSize = Math.ceil(JSON.stringify(ledgerForPrompt(ledger)).length / 4);
+  const user = `Current time: ${now}\nStory: ${story.title}\nDefault TTL minutes by type: ${JSON.stringify(ttls)}\nThis will be cycle ${nextCycle}.\nCurrent ledger size: about ${ledgerSize} tokens (target under 1,200: merge overlapping claims and shorten texts if above).\n\nCURRENT LEDGER:\n${JSON.stringify(ledgerForPrompt(ledger))}\n\nNEW EVIDENCE (${evidence.length} snippets, each pre-labeled by a triage model):\n${evidenceLines || "(none this cycle: only apply TTL decay, dedup and question cleanup)"}`;
 
   const usage: TokenUsage[] = [];
   let lastErr = "";
-  for (let attempt = 0; attempt < 2; attempt++) {
+  for (let attempt = 0; attempt < 3; attempt++) {
     const started = Date.now();
     const messages: OpenAI.ChatCompletionMessageParam[] = [
       { role: "system", content: MERGE_SYSTEM },
       { role: "user", content: attempt === 0 ? user : `${user}\n\nYour previous output failed validation: ${lastErr}. Fix it and output the full ledger again.` },
     ];
-    const r = await client.chat.completions.create({
-      model,
-      ...(model.startsWith("gpt-5") ? {} : { temperature: 0.1 }),
-      messages,
-      response_format: { type: "json_schema", json_schema: { name: "ledger_merge", strict: true, schema: jsonSchema as never } },
-    });
+    let r: OpenAI.ChatCompletion;
+    try {
+      r = await client.chat.completions.create({
+        model,
+        ...(model.startsWith("gpt-5") ? {} : { temperature: 0.1 }),
+        messages,
+        response_format: { type: "json_schema", json_schema: { name: "ledger_merge", strict: true, schema: jsonSchema as never } },
+      });
+    } catch (e) {
+      const cause = (e as { cause?: { message?: string; code?: string } }).cause;
+      lastErr = `${errMsg(e)}${cause ? ` (cause: ${cause.code ?? ""} ${cause.message ?? ""})` : ""}`.slice(0, 300);
+      warn(`merge request failed (attempt ${attempt + 1}): ${lastErr}`);
+      continue;
+    }
     const ms = Date.now() - started;
     usage.push({ step: "merge", provider: "openai", model: r.model || model, prompt_tokens: r.usage?.prompt_tokens ?? 0, completion_tokens: r.usage?.completion_tokens ?? 0, ms });
     const raw = r.choices[0]?.message.content ?? "";
@@ -122,7 +133,7 @@ export async function mergeLedger(story: StoryConfig, ledger: Ledger, evidence: 
       warn(`merge output invalid (attempt ${attempt + 1}): ${lastErr}`);
     }
   }
-  throw new Error(`merge failed twice: ${lastErr}`);
+  throw new Error(`merge failed after 3 attempts: ${lastErr}`);
 }
 
 /** Deterministic guard rails on top of the model's output. */

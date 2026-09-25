@@ -1,7 +1,8 @@
 /**
- * Liquid AI triage behind an OpenAI-compatible chat endpoint (Ollama or OpenRouter).
+ * Liquid AI triage behind an OpenAI-compatible chat endpoint (OpenRouter). No model ever runs locally.
  * Each snippet is labeled with exactly one of: new | duplicate:<id> | contradicts:<id> | irrelevant.
- * Falls back to an OpenAI mini-class model with a loud warning if the triage backend is down.
+ * Resolution order: TRIAGE_BASE_URL (+ TRIAGE_API_KEY) -> OPENROUTER_API_KEY -> OpenAI mini model.
+ * A configured Liquid backend that goes down mid-run falls back to the OpenAI mini model with a loud warning.
  */
 import OpenAI from "openai";
 import { env } from "../config.js";
@@ -17,13 +18,35 @@ contradicts:cN -> the snippet disagrees with claim cN (different number, status,
 irrelevant     -> not a factual statement about the story, or boilerplate
 Prefer contradicts over duplicate when a number or status differs. Prefer new over irrelevant when the snippet contains a specific fact.`;
 
-function resolveBackend() {
-  if (env.TRIAGE_BASE_URL) return { baseURL: env.TRIAGE_BASE_URL, apiKey: env.TRIAGE_API_KEY || "none", model: env.TRIAGE_MODEL || "lfm2.5", name: `liquid@${new URL(env.TRIAGE_BASE_URL).hostname}` };
-  if (env.OPENROUTER_API_KEY) return { baseURL: "https://openrouter.ai/api/v1", apiKey: env.OPENROUTER_API_KEY, model: env.TRIAGE_MODEL || "liquid/lfm-2.5-1.2b-instruct", name: "liquid@openrouter" };
-  return { baseURL: "http://localhost:11434/v1", apiKey: "ollama", model: env.TRIAGE_MODEL || "lfm2.5", name: "liquid@ollama" };
+const OPENROUTER_URL = "https://openrouter.ai/api/v1";
+const OPENROUTER_LIQUID_MODEL = "liquid/lfm-2.5-2.6b:free"; // only Liquid id OpenRouter lists as of 2026-09-25
+const MINI_MODEL = process.env.TRIAGE_FALLBACK_MODEL || "gpt-4.1-mini";
+const LOCAL_RE = /localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]|:11434\b/i;
+
+type Backend =
+  | { kind: "liquid"; baseURL: string; apiKey: string; model: string; name: string }
+  | { kind: "openai-mini"; model: string; name: string; reason: string };
+
+function resolveBackend(): Backend {
+  const base = env.TRIAGE_BASE_URL;
+  if (base && LOCAL_RE.test(base)) {
+    warn(`TRIAGE_BASE_URL=${base} points at a local model server; local models are disabled -> ignoring it`);
+  } else if (base) {
+    const host = new URL(base).hostname;
+    const key = env.TRIAGE_API_KEY;
+    if (key || host !== "openrouter.ai") return { kind: "liquid", baseURL: base, apiKey: key || "none", model: env.TRIAGE_MODEL || OPENROUTER_LIQUID_MODEL, name: `liquid@${host}` };
+    warn(`TRIAGE_BASE_URL=${base} but no TRIAGE_API_KEY/OPENROUTER_API_KEY -> triage runs on OpenAI ${MINI_MODEL}`);
+    return { kind: "openai-mini", model: MINI_MODEL, name: `openai-mini (no OpenRouter key)`, reason: "no OpenRouter key" };
+  }
+  if (env.OPENROUTER_API_KEY) return { kind: "liquid", baseURL: OPENROUTER_URL, apiKey: env.OPENROUTER_API_KEY, model: env.TRIAGE_MODEL || OPENROUTER_LIQUID_MODEL, name: "liquid@openrouter" };
+  return { kind: "openai-mini", model: MINI_MODEL, name: `openai-mini (no triage backend configured)`, reason: "no triage backend configured" };
 }
 const backend = resolveBackend();
+const TRIAGE_TIMEOUT = 20000;
+const TRIAGE_CONCURRENCY = Number(process.env.TRIAGE_CONCURRENCY || 8);
 export const triageBackendName = () => backend.name;
+export const triageBackendModel = () => backend.model;
+export const triageUsesLiquid = () => backend.kind === "liquid";
 let triageClient: OpenAI | null = null;
 let fallbackClient: OpenAI | null = null;
 let backendDown = false;
@@ -50,14 +73,16 @@ async function ask(client: OpenAI, model: string, claims: CompactClaim[], snippe
         { role: "user", content: `Claims:\n${claimList}\n\nSnippet: ${snippet}\n\nLabel:` },
       ],
     },
-    { timeout: 20000 },
+    { timeout: TRIAGE_TIMEOUT },
   );
-  return { text: r.choices[0]?.message.content?.trim() ?? "", usage: r.usage, model: r.model || model };
+  // Strip any thinking block a reasoning-tuned local model might emit.
+  const text = (r.choices[0]?.message.content ?? "").replace(/<think>[\s\S]*?(<\/think>|$)/g, "").trim();
+  return { text, usage: r.usage, model: r.model || model };
 }
 
 export async function triageOne(claims: CompactClaim[], snippet: string): Promise<{ label: TriageLabel; labelRaw: string; model: string; ms: number; usage: TokenUsage }> {
   const started = Date.now();
-  if (!backendDown) {
+  if (backend.kind === "liquid" && !backendDown) {
     try {
       triageClient ??= new OpenAI({ baseURL: backend.baseURL, apiKey: backend.apiKey, maxRetries: 0 });
       const r = await ask(triageClient, backend.model, claims, snippet);
@@ -68,13 +93,14 @@ export async function triageOne(claims: CompactClaim[], snippet: string): Promis
       consecutiveFailures++;
       if (consecutiveFailures >= 3 && !backendDown) {
         backendDown = true;
-        warn(`!!!!! TRIAGE BACKEND ${backend.name} (${backend.model}) IS DOWN: ${errMsg(e)} -> falling back to OpenAI mini for the rest of this process !!!!!`);
+        warn(`!!!!! TRIAGE BACKEND ${backend.name} (${backend.model}) IS DOWN: ${errMsg(e)} -> falling back to OpenAI ${MINI_MODEL} for the rest of this cycle !!!!!`);
       }
     }
   }
-  if (!env.OPENAI_API_KEY) throw new Error(`triage backend ${backend.name} unavailable and no OPENAI_API_KEY for fallback`);
+  const isFallback = backend.kind === "liquid";
+  if (!env.OPENAI_API_KEY) throw new Error(`triage backend ${backend.name} unavailable and no OPENAI_API_KEY for the mini model`);
   fallbackClient ??= new OpenAI({ apiKey: env.OPENAI_API_KEY, maxRetries: 0 });
-  const model = "gpt-4.1-mini";
+  const model = MINI_MODEL;
   let r: Awaited<ReturnType<typeof ask>> | null = null;
   for (let i = 0; i < 4; i++) {
     try {
@@ -85,9 +111,9 @@ export async function triageOne(claims: CompactClaim[], snippet: string): Promis
       await sleep(1500 * (i + 1) + Math.random() * 1000);
     }
   }
-  if (!r) throw new Error("triage fallback failed");
+  if (!r) throw new Error("triage on OpenAI mini failed");
   const ms = Date.now() - started;
-  return { label: parseLabel(r.text), labelRaw: r.text, model: `${r.model} (fallback)`, ms, usage: { step: "triage", provider: "openai-fallback", model: r.model, prompt_tokens: r.usage?.prompt_tokens ?? 0, completion_tokens: r.usage?.completion_tokens ?? 0, ms } };
+  return { label: parseLabel(r.text), labelRaw: r.text, model: isFallback ? `${r.model} (fallback)` : r.model, ms, usage: { step: "triage", provider: isFallback ? "openai-fallback" : "openai-mini", model: r.model, prompt_tokens: r.usage?.prompt_tokens ?? 0, completion_tokens: r.usage?.completion_tokens ?? 0, ms } };
 }
 
 /** Reset the down flag once per cycle so a recovered backend gets used again. */
@@ -97,7 +123,7 @@ export function triageRetryBackend() {
 }
 
 export async function triageSnippets(claims: CompactClaim[], snippets: Snippet[], budgetLeft: () => boolean, onUsage: (u: TokenUsage) => void = () => {}): Promise<{ triaged: TriagedSnippet[]; usage: TokenUsage[]; skipped: number; errors: number }> {
-  const limit = pLimit(8);
+  const limit = pLimit(TRIAGE_CONCURRENCY);
   const usage: TokenUsage[] = [];
   let skipped = 0;
   let errors = 0;

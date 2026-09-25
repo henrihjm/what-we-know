@@ -88,6 +88,8 @@ export interface TokenUsage {
   prompt_tokens: number;
   completion_tokens: number;
   ms: number;
+  /** false for a local model (no cost); excluded from the per-cycle token budget. */
+  billable?: boolean;
 }
 
 export interface FixedSourceConfig {

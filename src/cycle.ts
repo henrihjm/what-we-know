@@ -32,7 +32,8 @@ export async function runCycle(story: StoryConfig, opts: CycleOptions): Promise<
   const storyKey = opts.sandbox ? `${story.id}-sandbox` : opts.dryRun ? `${story.id}-dry` : story.id;
   const usage: TokenUsage[] = [];
   const tokensSoFar = () => usage.reduce((a, u) => a + u.prompt_tokens + u.completion_tokens, 0);
-  const budgetLeft = () => tokensSoFar() < env.MAX_TOKENS_PER_CYCLE;
+  const billableSoFar = () => usage.reduce((a, u) => a + (u.billable === false ? 0 : u.prompt_tokens + u.completion_tokens), 0);
+  const budgetLeft = () => billableSoFar() < env.MAX_TOKENS_PER_CYCLE;
 
   // ---------- PLAN ----------
   const { ledger: prev, from } = await loadLedger(story, opts.dryRun ? storyKey : story.id);
