@@ -89,7 +89,7 @@ export interface MergeResult {
 
 export async function mergeLedger(story: StoryConfig, ledger: Ledger, evidence: TriagedSnippet[], nextCycle: number): Promise<MergeResult> {
   if (!env.OPENAI_API_KEY) throw new Error("OPENAI_API_KEY missing");
-  client ??= new OpenAI({ apiKey: env.OPENAI_API_KEY, maxRetries: 1, timeout: 120000 });
+  client ??= new OpenAI({ apiKey: env.OPENAI_API_KEY, maxRetries: 2, timeout: 300000 });
   const model = openaiModel();
   const now = nowIso();
   const ttls = Object.fromEntries((Object.keys(DEFAULT_TTL) as Array<keyof typeof DEFAULT_TTL>).map((t) => [t, ttlFor(story, t)]));

@@ -74,22 +74,28 @@ export async function runCycle(story: StoryConfig, opts: CycleOptions): Promise<
   const obsOk = observations.filter((o) => o.ok).length;
 
   // ---------- OBSERVE ----------
-  const snippets = splitToSnippets(observations, story);
+  // Strongest sources first so the token budget, if hit, drops the weakest evidence.
+  const snippets = splitToSnippets(observations, story).sort((a, b) => b.weight - a.weight);
   const compactClaims = prev.claims.filter((c) => c.status === "active").map((c) => ({ id: c.id, text: c.text }));
   let triaged: TriagedSnippet[];
   let skipped = 0;
+  let triageErrors = 0;
   if (opts.dryRun) {
     triaged = snippets.map((s) => ({ ...s, label: { kind: "new" as const }, labelRaw: "new (stub)", model: "stub", ms: 0 }));
   } else {
     triageRetryBackend();
-    const r = await triageSnippets(compactClaims, snippets, budgetLeft);
+    const r = await triageSnippets(compactClaims, snippets, budgetLeft, (u) => usage.push(u));
     triaged = r.triaged;
     skipped = r.skipped;
-    usage.push(...r.usage);
+    triageErrors = r.errors;
   }
   const counts = { new: 0, contradicts: 0, duplicate: 0, irrelevant: 0 };
   for (const t of triaged) counts[t.label.kind]++;
-  const surviving = triaged.filter((t) => t.label.kind === "new" || t.label.kind === "contradicts").slice(0, 120);
+  // Contradictions first, then strongest sources; cap what the merge model sees.
+  const surviving = triaged
+    .filter((t) => t.label.kind === "new" || t.label.kind === "contradicts")
+    .sort((a, b) => (b.label.kind === "contradicts" ? 1 : 0) - (a.label.kind === "contradicts" ? 1 : 0) || b.weight - a.weight)
+    .slice(0, 80);
   const triageModel = triaged.find((t) => t.model !== "none")?.model ?? (opts.dryRun ? "stub" : triageBackendName());
 
   // ---------- SELF-CORRECT ----------
@@ -197,9 +203,9 @@ export async function runCycle(story: StoryConfig, opts: CycleOptions): Promise<
     budget_exceeded: skipped > 0,
     error: null,
   };
-  if (persist) await rawtreeInsertSafe("cycles", [row({ ...stats, merge_model: mergeModel, tickets, queries: queries.join(" || "), ledger_from: from, skipped_snippets: skipped })]);
+  if (persist) await rawtreeInsertSafe("cycles", [row({ ...stats, merge_model: mergeModel, tickets, queries: queries.join(" || "), ledger_from: from, skipped_snippets: skipped, triage_errors: triageErrors })]);
   console.log(
-    `cycle ${cycle} | obs ${stats.observations} (${obsOk} ok) | snippets ${stats.snippets} | triage new ${counts.new} contradict ${counts.contradicts} dup ${counts.duplicate} irr ${counts.irrelevant}${skipped ? ` skipped ${skipped} (budget)` : ""} | claims ${active.length} active | corrections ${corrections.length} | tokens ${stats.tokens.toLocaleString()} | ledger ~${ledgerTokens} tok | ${Math.round(ms / 1000)} s`,
+    `cycle ${cycle} | obs ${stats.observations} (${obsOk} ok) | snippets ${stats.snippets} | triage new ${counts.new} contradict ${counts.contradicts} dup ${counts.duplicate} irr ${counts.irrelevant}${skipped ? ` skipped ${skipped} (budget)` : ""}${triageErrors ? ` errors ${triageErrors}` : ""} | claims ${active.length} active | corrections ${corrections.length} | tokens ${stats.tokens.toLocaleString()} | ledger ~${ledgerTokens} tok | ${Math.round(ms / 1000)} s`,
   );
   return { stats, ledger };
 }

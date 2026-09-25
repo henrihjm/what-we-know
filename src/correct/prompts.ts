@@ -7,7 +7,7 @@ Claims past their TTL with no reconfirmation lose 0.1 confidence per cycle; belo
 Never keep two active claims that say the same thing. Merge them.
 Open questions are things a reader would ask next that the ledger cannot answer. Keep at most 6. Remove a question once a claim answers it.
 Rewrite the summary from the active claims only. Never include anything that is not in a claim. Three to four plain sentences.
-Keep the total ledger under 60 active claims. If over, drop the lowest-confidence statement claims first.
+Keep the total ledger under 60 active claims and under about 1,200 tokens in total. If over, merge related claims and drop the lowest-confidence statement claims first.
 Claim ids: keep existing ids unchanged; new claims get the next unused id in the form c<number>.
 For number claims fill value (a plain number) and unit (e.g. mph, customers, flights, USD/bbl). Set ttl_minutes from the defaults given unless evidence says otherwise.
 Do not put raw snippet text into the ledger; restate the fact in your own short words.
