@@ -46,6 +46,7 @@ const TRIAGE_TIMEOUT = 45000;
 /** OpenRouter's Liquid endpoint forces a reasoning phase (cannot be disabled), so it needs room to think and is slower; cap how many snippets per cycle it handles. */
 const LIQUID_MAX_TOKENS = 1500;
 export const LIQUID_MAX_PER_CYCLE = Number(process.env.LIQUID_MAX_PER_CYCLE || 40);
+const liquidLimit = pLimit(Number(process.env.LIQUID_CONCURRENCY || 3));
 const TRIAGE_CONCURRENCY = Number(process.env.TRIAGE_CONCURRENCY || 8);
 export const triageBackendName = () => backend.name;
 export const triageBackendModel = () => backend.model;
@@ -94,13 +95,23 @@ export async function triageOne(claims: CompactClaim[], snippet: string, allowLi
   if (backend.kind === "liquid" && !backendDown && allowLiquid) {
     try {
       triageClient ??= new OpenAI({ baseURL: backend.baseURL, apiKey: backend.apiKey, maxRetries: 0 });
-      const r = await ask(triageClient, backend.model, claims, snippet, true);
+      let r: Awaited<ReturnType<typeof ask>> | null = null;
+      for (let i = 0; i < 3; i++) {
+        try {
+          r = await liquidLimit(() => ask(triageClient!, backend.model, claims, snippet, true));
+          break;
+        } catch (e) {
+          if (!/429|rate limit/i.test(errMsg(e)) || i === 2) throw e;
+          await sleep(3000 * (i + 1) + Math.random() * 2000);
+        }
+      }
+      if (!r) throw new Error("liquid triage failed");
       consecutiveFailures = 0;
       const ms = Date.now() - started;
       return { label: parseLabel(r.text), labelRaw: r.text, model: r.model, ms, usage: { step: "triage", provider: "liquid", model: r.model, prompt_tokens: r.usage?.prompt_tokens ?? 0, completion_tokens: r.usage?.completion_tokens ?? 0, ms, billable: false } };
     } catch (e) {
       consecutiveFailures++;
-      if (consecutiveFailures >= 3 && !backendDown) {
+      if (consecutiveFailures >= 6 && !backendDown) {
         backendDown = true;
         warn(`!!!!! TRIAGE BACKEND ${backend.name} (${backend.model}) IS DOWN: ${errMsg(e)} -> falling back to OpenAI ${MINI_MODEL} for the rest of this cycle !!!!!`);
       }

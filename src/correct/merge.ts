@@ -83,9 +83,10 @@ export function ledgerForPrompt(ledger: Ledger): string {
   const lines = ledger.claims.map((c) => {
     const val = c.value != null ? ` =${c.value}${c.unit ? " " + c.unit : ""}` : "";
     const sup = c.supersedes ? ` supersedes:${c.supersedes}` : "";
-    return `${c.id} [${c.type} ${c.status} conf ${c.confidence.toFixed(2)} ttl ${c.ttl_minutes}m seen ${hh(c.first_seen)} confirmed ${hh(c.last_confirmed)}${sup}] ${c.text}${val} <${c.sources.map(host).join(", ")}>`;
+    if (c.status !== "active") return `${c.id} [${c.status}${sup}] ${c.text.slice(0, 60)}`;
+    return `${c.id} [${c.type} ${c.confidence.toFixed(2)} ttl${c.ttl_minutes} ${hh(c.last_confirmed)}${sup}] ${c.text}${val} <${[...new Set(c.sources.map(host))].join(",")}>`;
   });
-  return `summary: ${ledger.summary}\nopen_questions: ${ledger.open_questions.join(" | ") || "(none)"}\nclaims (${ledger.claims.length}):\n${lines.join("\n") || "(none)"}\nsource URLs are abbreviated to hosts; when you keep a claim, keep its sources array as it was (full URLs are restored automatically if you write hosts).`;
+  return `summary: ${ledger.summary}\nopen_questions: ${ledger.open_questions.join(" | ") || "(none)"}\nclaims (${ledger.claims.length}; format: id [type confidence ttl last_confirmed] text =value <source hosts>):\n${lines.join("\n") || "(none)"}\nFor kept claims, copy first_seen from your memory of the claim or reuse last_confirmed; sources may be written as hosts, full URLs are restored automatically.`;
 }
 
 export interface MergeResult {
@@ -158,6 +159,21 @@ export function applyInvariants(story: StoryConfig, prev: Ledger, out: MergeOutp
     const statusChanged = !p || p.status !== c.status;
     return { ...c, text: c.text.slice(0, 200), supersedes: c.supersedes === c.id ? null : c.supersedes, confidence: Math.max(0, Math.min(1, c.confidence)), status_changed_at: statusChanged ? now : (p?.status_changed_at ?? null) };
   });
+  // A claim that "supersedes" another with the same meaning is a confirmation, not a correction: keep the old id.
+  const norm = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const dropIds = new Set<string>();
+  for (const c of claims) {
+    if (!c.supersedes || c.status !== "active") continue;
+    const old = claims.find((o) => o.id === c.supersedes) ?? prevById.get(c.supersedes);
+    if (old && norm(old.text) === norm(c.text) && old.value === c.value) {
+      dropIds.add(c.id);
+      const keep = claims.find((o) => o.id === old.id);
+      if (keep) Object.assign(keep, { status: "active", status_changed_at: prevById.get(old.id)?.status_changed_at ?? null, last_confirmed: c.last_confirmed, confidence: Math.max(keep.confidence, c.confidence), sources: [...new Set([...keep.sources, ...c.sources])].slice(0, 3) });
+      else claims.push({ ...old, status: "active", last_confirmed: c.last_confirmed, confidence: c.confidence, sources: c.sources });
+    }
+  }
+  claims = claims.filter((c) => !dropIds.has(c.id));
+  out.corrections = out.corrections.filter((k) => norm(k.from_text) !== norm(k.to_text) && !dropIds.has(k.claim_id));
   // Dedup ids (keep first).
   const seen = new Set<string>();
   claims = claims.filter((c) => (seen.has(c.id) ? false : (seen.add(c.id), true)));
