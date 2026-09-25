@@ -11,6 +11,8 @@ Keep the total ledger under 60 active claims and under about 1,200 tokens in tot
 Claim ids: keep existing ids unchanged; new claims get the next unused id in the form c<number>.
 For number claims fill value (a plain number) and unit (e.g. mph, customers, flights, USD/bbl). Set ttl_minutes from the defaults given unless evidence says otherwise.
 Do not put raw snippet text into the ledger; restate the fact in your own short words.
+A source that omits a value (no gust reported, field unavailable, page not updated) is not evidence that an earlier value changed. Never create a claim saying data is unavailable; keep the earlier number active and let its TTL work.
+For station gusts keep one active number claim per station (the most recent gust); a newer reading supersedes the older one.
 Output JSON only, matching the schema. Corrections: {claim_id, from_text, to_text, reason, source}.`;
 
 export const SUMMARY_SYSTEM = `You write the "what we know" summary for a live news dashboard. You are given only a list of active claims about one story. Write three to four plain sentences, present tense, no speculation, no numbers or facts that are not in the claims. Lead with the most consequential fact. Plain text, no markdown, no bullet points.`;

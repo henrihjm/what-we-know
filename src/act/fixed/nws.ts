@@ -36,5 +36,7 @@ export async function fetchNwsObs(url: string): Promise<string> {
   const gust = toMph(p.windGust?.value, p.windGust?.unitCode);
   const pressure = p.barometricPressure?.value != null ? Math.round(p.barometricPressure.value / 100) : null;
   const desc = p.textDescription ?? "";
-  return `NWS observation at ${station} at ${p.timestamp}: wind ${wind ?? "n/a"} mph, gust ${gust ?? "n/a"} mph, pressure ${pressure ?? "n/a"} hPa, ${desc}.`;
+  const gustPart = gust != null ? `gust ${gust} mph` : "no gust reported in this observation (steady wind)";
+  const windPart = wind != null ? `sustained wind ${wind} mph` : "wind not reported";
+  return `NWS observation at ${station} at ${p.timestamp}: ${windPart}, ${gustPart}, pressure ${pressure ?? "unknown"} hPa, ${desc}.`;
 }

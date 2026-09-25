@@ -131,7 +131,7 @@ export function applyInvariants(story: StoryConfig, prev: Ledger, out: MergeOutp
   let claims: Claim[] = out.claims.map((c) => {
     const p = prevById.get(c.id);
     const statusChanged = !p || p.status !== c.status;
-    return { ...c, confidence: Math.max(0, Math.min(1, c.confidence)), status_changed_at: statusChanged ? now : (p?.status_changed_at ?? null) };
+    return { ...c, text: c.text.slice(0, 200), supersedes: c.supersedes === c.id ? null : c.supersedes, confidence: Math.max(0, Math.min(1, c.confidence)), status_changed_at: statusChanged ? now : (p?.status_changed_at ?? null) };
   });
   // Dedup ids (keep first).
   const seen = new Set<string>();
