@@ -162,5 +162,5 @@ Solo entry.
 - SILTA accelerator (F26 cohort)
 - Email: henri.makivirta@gmail.com
 - GitHub: [@henrihjm](https://github.com/henrihjm)
-- X: [@TODO_X_HANDLE](https://x.com/TODO_X_HANDLE)
+- X: [@hedgeratio](https://x.com/hedgeratio)
 - LinkedIn: [henrimakivirta](https://www.linkedin.com/in/henrimakivirta/)
