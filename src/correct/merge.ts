@@ -76,9 +76,16 @@ export function openaiModel() {
   return env.OPENAI_MODEL || "gpt-5.2";
 }
 
-function ledgerForPrompt(ledger: Ledger) {
-  // Only what the model needs: no source health, no ttl bookkeeping beyond the claim fields.
-  return { story: ledger.story, cycle: ledger.cycle, updated_at: ledger.updated_at, summary: ledger.summary, claims: ledger.claims, open_questions: ledger.open_questions };
+/** Compact one-line-per-claim form: what the model reads. Full JSON is only what it writes and what we store. */
+export function ledgerForPrompt(ledger: Ledger): string {
+  const hh = (iso: string) => (iso ? iso.slice(5, 16).replace("T", " ") + "Z" : "?");
+  const host = (u: string) => u.replace(/^https?:\/\/(www\.)?/, "").split("/")[0].replace(/^nimble:.*/, "search");
+  const lines = ledger.claims.map((c) => {
+    const val = c.value != null ? ` =${c.value}${c.unit ? " " + c.unit : ""}` : "";
+    const sup = c.supersedes ? ` supersedes:${c.supersedes}` : "";
+    return `${c.id} [${c.type} ${c.status} conf ${c.confidence.toFixed(2)} ttl ${c.ttl_minutes}m seen ${hh(c.first_seen)} confirmed ${hh(c.last_confirmed)}${sup}] ${c.text}${val} <${c.sources.map(host).join(", ")}>`;
+  });
+  return `summary: ${ledger.summary}\nopen_questions: ${ledger.open_questions.join(" | ") || "(none)"}\nclaims (${ledger.claims.length}):\n${lines.join("\n") || "(none)"}\nsource URLs are abbreviated to hosts; when you keep a claim, keep its sources array as it was (full URLs are restored automatically if you write hosts).`;
 }
 
 export interface MergeResult {
@@ -96,8 +103,9 @@ export async function mergeLedger(story: StoryConfig, ledger: Ledger, evidence: 
   const now = nowIso();
   const ttls = Object.fromEntries((Object.keys(DEFAULT_TTL) as Array<keyof typeof DEFAULT_TTL>).map((t) => [t, ttlFor(story, t)]));
   const evidenceLines = evidence.map((s) => `- [${s.label.kind}${"claimId" in s.label ? ":" + s.label.claimId : ""}] (weight ${s.weight.toFixed(2)}, fetched ${s.fetched_at}, ${s.url}) ${s.text}`).join("\n");
-  const ledgerSize = Math.ceil(JSON.stringify(ledgerForPrompt(ledger)).length / 4);
-  const user = `Current time: ${now}\nStory: ${story.title}\nDefault TTL minutes by type: ${JSON.stringify(ttls)}\nThis will be cycle ${nextCycle}.\nCurrent ledger size: about ${ledgerSize} tokens (target under 1,200: merge overlapping claims and shorten texts if above).\n\nCURRENT LEDGER:\n${JSON.stringify(ledgerForPrompt(ledger))}\n\nNEW EVIDENCE (${evidence.length} snippets, each pre-labeled by a triage model):\n${evidenceLines || "(none this cycle: only apply TTL decay, dedup and question cleanup)"}`;
+  const compact = ledgerForPrompt(ledger);
+  const ledgerSize = Math.ceil(compact.length / 4);
+  const user = `Current time: ${now}\nStory: ${story.title}\nDefault TTL minutes by type: ${JSON.stringify(ttls)}\nThis will be cycle ${nextCycle}.\nCurrent ledger size: about ${ledgerSize} tokens (target under 1,200: merge overlapping claims and shorten texts if above).\n\nCURRENT LEDGER (compact form; output the full JSON schema):\n${compact}\n\nNEW EVIDENCE (${evidence.length} snippets, each pre-labeled by a triage model):\n${evidenceLines || "(none this cycle: only apply TTL decay, dedup and question cleanup)"}`;
 
   const usage: TokenUsage[] = [];
   let lastErr = "";
@@ -139,8 +147,14 @@ export async function mergeLedger(story: StoryConfig, ledger: Ledger, evidence: 
 /** Deterministic guard rails on top of the model's output. */
 export function applyInvariants(story: StoryConfig, prev: Ledger, out: MergeOutput, cycle: number, now: string): Ledger {
   const prevById = new Map(prev.claims.map((c) => [c.id, c]));
+  const restoreSources = (c: Claim, p?: Claim): string[] => {
+    const prevUrls = p?.sources ?? [];
+    const fixed = c.sources.map((s) => (/^https?:\/\//.test(s) ? s : (prevUrls.find((u) => u.includes(s)) ?? s)));
+    return [...new Set(fixed)].slice(0, 3);
+  };
   let claims: Claim[] = out.claims.map((c) => {
     const p = prevById.get(c.id);
+    c = { ...c, sources: restoreSources(c, p) };
     const statusChanged = !p || p.status !== c.status;
     return { ...c, text: c.text.slice(0, 200), supersedes: c.supersedes === c.id ? null : c.supersedes, confidence: Math.max(0, Math.min(1, c.confidence)), status_changed_at: statusChanged ? now : (p?.status_changed_at ?? null) };
   });

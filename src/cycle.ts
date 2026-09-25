@@ -11,7 +11,7 @@ import { nimbleSearch } from "./act/nimble.js";
 import { runFixedSources } from "./act/fixed/index.js";
 import { splitToSnippets } from "./observe/split.js";
 import { triageSnippets, triageRetryBackend, triageBackendName } from "./observe/triage.js";
-import { mergeLedger, openaiModel, applyInvariants } from "./correct/merge.js";
+import { mergeLedger, openaiModel, applyInvariants, ledgerForPrompt } from "./correct/merge.js";
 import { rewriteSummary } from "./correct/summary.js";
 import { persistRows } from "./persist/index.js";
 import { loadLedger, saveLedgerCache } from "./persist/state.js";
@@ -125,8 +125,8 @@ export async function runCycle(story: StoryConfig, opts: CycleOptions): Promise<
   ledger.updated_at = ts();
   const active = ledger.claims.filter((c) => c.status === "active");
   const ledgerJson = JSON.stringify(ledger);
-  // Headline size = what the next cycle's merge prompt sees (claims, questions, summary); source health is bookkeeping.
-  const ledgerTokens = estimateTokens(JSON.stringify({ summary: ledger.summary, claims: ledger.claims, open_questions: ledger.open_questions }));
+  // Headline size = what the next cycle's merge prompt sees (compact form); the full JSON is storage.
+  const ledgerTokens = estimateTokens(ledgerForPrompt(ledger));
   const ledgerTokensFull = estimateTokens(ledgerJson);
 
   // ---------- PERSIST ----------

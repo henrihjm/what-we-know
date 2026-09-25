@@ -42,7 +42,10 @@ function resolveBackend(): Backend {
   return { kind: "openai-mini", model: MINI_MODEL, name: `openai-mini (no triage backend configured)`, reason: "no triage backend configured" };
 }
 const backend = resolveBackend();
-const TRIAGE_TIMEOUT = 20000;
+const TRIAGE_TIMEOUT = 45000;
+/** OpenRouter's Liquid endpoint forces a reasoning phase (cannot be disabled), so it needs room to think and is slower; cap how many snippets per cycle it handles. */
+const LIQUID_MAX_TOKENS = 1500;
+export const LIQUID_MAX_PER_CYCLE = Number(process.env.LIQUID_MAX_PER_CYCLE || 40);
 const TRIAGE_CONCURRENCY = Number(process.env.TRIAGE_CONCURRENCY || 8);
 export const triageBackendName = () => backend.name;
 export const triageBackendModel = () => backend.model;
@@ -61,13 +64,13 @@ export function parseLabel(raw: string): TriageLabel {
   return { kind: "irrelevant" };
 }
 
-async function ask(client: OpenAI, model: string, claims: CompactClaim[], snippet: string) {
+async function ask(client: OpenAI, model: string, claims: CompactClaim[], snippet: string, liquid = false) {
   const claimList = claims.length ? claims.map((c) => `${c.id}: ${c.text.length > 90 ? c.text.slice(0, 88) + "…" : c.text}`).join("\n") : "(no claims yet)";
   const r = await client.chat.completions.create(
     {
       model,
       temperature: 0,
-      max_tokens: 12,
+      max_tokens: liquid ? LIQUID_MAX_TOKENS : 12,
       messages: [
         { role: "system", content: SYSTEM },
         { role: "user", content: `Claims:\n${claimList}\n\nSnippet: ${snippet}\n\nLabel:` },
@@ -75,20 +78,26 @@ async function ask(client: OpenAI, model: string, claims: CompactClaim[], snippe
     },
     { timeout: TRIAGE_TIMEOUT },
   );
-  // Strip any thinking block a reasoning-tuned local model might emit.
-  const text = (r.choices[0]?.message.content ?? "").replace(/<think>[\s\S]*?(<\/think>|$)/g, "").trim();
+  const msg = r.choices[0]?.message as (OpenAI.ChatCompletionMessage & { reasoning?: string | null }) | undefined;
+  let text = (msg?.content ?? "").replace(/<think>[\s\S]*?(<\/think>|$)/g, "").trim();
+  if (!text && msg?.reasoning) {
+    // The model ran out of tokens while reasoning: take the last label it named in its reasoning.
+    const all = [...msg.reasoning.matchAll(/(contradicts?|duplicates?|new|irrelevant)\s*[:\-]?\s*(c\d+)?/gi)];
+    const last = all.at(-1);
+    text = last ? `${last[1].toLowerCase().replace(/s$/, "").replace("contradict", "contradicts")}${last[2] ? ":" + last[2] : ""} (from reasoning)` : "";
+  }
   return { text, usage: r.usage, model: r.model || model };
 }
 
-export async function triageOne(claims: CompactClaim[], snippet: string): Promise<{ label: TriageLabel; labelRaw: string; model: string; ms: number; usage: TokenUsage }> {
+export async function triageOne(claims: CompactClaim[], snippet: string, allowLiquid = true): Promise<{ label: TriageLabel; labelRaw: string; model: string; ms: number; usage: TokenUsage }> {
   const started = Date.now();
-  if (backend.kind === "liquid" && !backendDown) {
+  if (backend.kind === "liquid" && !backendDown && allowLiquid) {
     try {
       triageClient ??= new OpenAI({ baseURL: backend.baseURL, apiKey: backend.apiKey, maxRetries: 0 });
-      const r = await ask(triageClient, backend.model, claims, snippet);
+      const r = await ask(triageClient, backend.model, claims, snippet, true);
       consecutiveFailures = 0;
       const ms = Date.now() - started;
-      return { label: parseLabel(r.text), labelRaw: r.text, model: r.model, ms, usage: { step: "triage", provider: "liquid", model: r.model, prompt_tokens: r.usage?.prompt_tokens ?? 0, completion_tokens: r.usage?.completion_tokens ?? 0, ms } };
+      return { label: parseLabel(r.text), labelRaw: r.text, model: r.model, ms, usage: { step: "triage", provider: "liquid", model: r.model, prompt_tokens: r.usage?.prompt_tokens ?? 0, completion_tokens: r.usage?.completion_tokens ?? 0, ms, billable: false } };
     } catch (e) {
       consecutiveFailures++;
       if (consecutiveFailures >= 3 && !backendDown) {
@@ -97,7 +106,7 @@ export async function triageOne(claims: CompactClaim[], snippet: string): Promis
       }
     }
   }
-  const isFallback = backend.kind === "liquid";
+  const isFallback = backend.kind === "liquid" && allowLiquid;
   if (!env.OPENAI_API_KEY) throw new Error(`triage backend ${backend.name} unavailable and no OPENAI_API_KEY for the mini model`);
   fallbackClient ??= new OpenAI({ apiKey: env.OPENAI_API_KEY, maxRetries: 0 });
   const model = MINI_MODEL;
@@ -128,14 +137,14 @@ export async function triageSnippets(claims: CompactClaim[], snippets: Snippet[]
   let skipped = 0;
   let errors = 0;
   const triaged = await Promise.all(
-    snippets.map((s) =>
+    snippets.map((s, i) =>
       limit(async (): Promise<TriagedSnippet | null> => {
         if (!budgetLeft()) {
           skipped++;
           return null;
         }
         try {
-          const r = await triageOne(claims, s.text);
+          const r = await triageOne(claims, s.text, i < LIQUID_MAX_PER_CYCLE);
           usage.push(r.usage);
           onUsage(r.usage);
           return { ...s, label: r.label, labelRaw: r.labelRaw, model: r.model, ms: r.ms };
