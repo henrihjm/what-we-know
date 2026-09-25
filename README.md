@@ -84,7 +84,13 @@ npm run loop        # ... cycle 12 | ...
 npm run loop        # [..] cycle 13 | noreaster | ledger from rawtree (cycle 12, 41 active)
 ```
 
-The loop resumes at cycle N+1 from the last ledger version in RawTree. Nothing to clean up. If RawTree is unreachable it uses `state/noreaster.json`, which is written every cycle.
+The loop resumes at cycle N+1 from the last ledger version in RawTree, or from `state/noreaster.json` (written every cycle) when RawTree is not configured. Nothing to clean up. Real lines from today's log (`state/loop-noreaster.log`), the loop was killed and restarted several times while features were added:
+
+```
+    --
+    [22:09:48] stopped after 1 cycles
+    [22:09:54] cycle 7 | noreaster | ledger from cache (cycle 6, 37 active) | 6 queries
+```
 
 ## Ledger schema
 
