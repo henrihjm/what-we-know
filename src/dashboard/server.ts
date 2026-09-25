@@ -19,9 +19,17 @@ function storyOf(c: { req: { query: (k: string) => string | undefined } }) {
   if (!STORY_KEYS.includes(s)) throw new Error("unknown story");
   return s;
 }
+/** RawTree returns DateTime64 as "2026-09-25 22:07:55.852000000"; make it ISO so the browser can parse it. */
+function fixTs<T>(rows: T[]): T[] {
+  for (const r of rows as Record<string, unknown>[]) for (const k of ["ts", "since", "last_ts", "last_ok", "fetched_at"]) {
+    const v = r[k];
+    if (typeof v === "string" && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/.test(v)) r[k] = v.replace(" ", "T").replace(/(\.\d{3})\d*$/, "$1") + "Z";
+  }
+  return rows;
+}
 async function q<T = Record<string, unknown>>(sql: string): Promise<T[]> {
   try {
-    return await rawtreeQuery<T>(sql);
+    return fixTs(await rawtreeQuery<T>(sql));
   } catch (e) {
     console.warn("query failed:", errMsg(e), "\n", sql);
     return [];
@@ -92,8 +100,8 @@ app.get("/api/sponsors", async (c) => {
   const s = sqlStory(storyOf(c));
   const one = async (sql: string) => Number((await q<{ n: number }>(sql))[0]?.n ?? 0);
   const [liquid, fallback, merges, bedrock, nimble, cards, tickets, ...rows] = await Promise.all([
-    one(`SELECT count() AS n FROM triage WHERE story = ${s} AND model NOT LIKE '%fallback%' AND model != 'none'`),
-    one(`SELECT count() AS n FROM triage WHERE story = ${s} AND model LIKE '%fallback%'`),
+    one(`SELECT count() AS n FROM triage WHERE story = ${s} AND model LIKE '%lfm%'`),
+    one(`SELECT count() AS n FROM triage WHERE story = ${s} AND model NOT LIKE '%lfm%' AND model != 'none'`),
     one(`SELECT count() AS n FROM tokens WHERE story = ${s} AND step = 'merge'`),
     one(`SELECT count() AS n FROM tokens WHERE story = ${s} AND provider = 'bedrock'`),
     one(`SELECT count() AS n FROM observations WHERE story = ${s} AND kind LIKE 'nimble%' AND ok = true`),

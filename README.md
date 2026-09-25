@@ -87,7 +87,6 @@ npm run loop        # [..] cycle 13 | noreaster | ledger from rawtree (cycle 12,
 The loop resumes at cycle N+1 from the last ledger version in RawTree, or from `state/noreaster.json` (written every cycle) when RawTree is not configured. Nothing to clean up. Real lines from today's log (`state/loop-noreaster.log`), the loop was killed and restarted several times while features were added:
 
 ```
-    --
     [22:09:48] stopped after 1 cycles
     [22:09:54] cycle 7 | noreaster | ledger from cache (cycle 6, 37 active) | 6 queries
 ```
@@ -103,7 +102,8 @@ The model reads the ledger in a compact one-line-per-claim form (`ledgerForPromp
 ## Notes on APIs (fixes to the original spec)
 
 - Nimble `extract.run` is synchronous in `@nimble-way/nimble-js` 1.5 and returns `data.markdown` directly; no task id polling is needed (`extract.async` is the polled variant).
-- RawTree scopes a database with the `?database=` query parameter (what the official SDK and MCP server send); we send both the parameter and the `x-rawtree-database` header.
+- RawTree API keys are created per database and already carry the database scope, so `RAWTREE_DATABASE` is optional. If set, it is sent both as the `?database=` query parameter (what the official SDK and MCP server send) and as an `x-rawtree-database` header.
+- RawTree returns `DateTime64` values as `2026-09-25 22:07:55.852000000`; the dashboard API normalises them to ISO before the browser sees them.
 - The FLUX endpoint is `POST https://api.bfl.ai/v1/flux-2-pro`; the client falls back to `flux-pro-1.1` on 404.
 - Local Liquid models were dropped on purpose: the default `lfm2.5` tag on Ollama is an 8B model (5 GB) and froze an 8 GB laptop when loaded next to the loop, Cursor and a browser. Triage never uses a local endpoint now; `TRIAGE_BASE_URL` pointing at localhost is ignored with a warning.
 - The FAA NAS status feed has no ground stops today for the Northeast; it reports JFK and LGA ground delay programs (reason: wind) and a BOS NOTAM closure to non-scheduled transient aircraft, all of which parse as separate lines.
