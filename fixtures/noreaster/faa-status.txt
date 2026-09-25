@@ -1,0 +1,3 @@
+FAA: JFK ground delay program as of Fri Sep 25 20:08:20 2026 GMT: type Ground_Delay_List/Ground_Delay, average 1 hour, reason: wind.
+FAA: LGA ground delay program as of Fri Sep 25 20:08:20 2026 GMT: type Ground_Delay_List/Ground_Delay, average 2 hours and 42 minutes, reason: wind.
+FAA: BOS delay as of Fri Sep 25 20:08:20 2026 GMT: type Airport_Closure_List, reason: !BOS 09/572 BOS AD AP CLSD TO NON SKED TRANSIENT ACFT EXC 6HR PPR 617-561-1919 2609251948-2609290359.

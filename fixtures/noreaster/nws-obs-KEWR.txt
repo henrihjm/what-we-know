@@ -1,0 +1,1 @@
+NWS observation at KEWR at 2026-09-25T19:45:00+00:00: wind n/a mph, gust n/a mph, pressure 1017 hPa, Mostly Clear.

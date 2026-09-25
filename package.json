@@ -1,0 +1,34 @@
+{
+  "name": "what-we-know",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "An agent that follows a developing news story for hours, keeps one small 'what we know' ledger instead of a growing transcript, and corrects itself when sources disagree.",
+  "scripts": {
+    "check-env": "tsx scripts/check-env.ts",
+    "cycle": "tsx src/run.ts --once --story noreaster",
+    "loop": "tsx src/run.ts --story noreaster --interval 300",
+    "loop:hormuz": "tsx src/run.ts --story hormuz --interval 300",
+    "dashboard": "tsx src/dashboard/server.ts",
+    "demo-stats": "tsx scripts/demo-stats.ts --story noreaster",
+    "dry": "tsx src/run.ts --once --story noreaster --dry-run",
+    "sandbox": "tsx src/run.ts --once --story noreaster --sandbox",
+    "typecheck": "tsc --noEmit"
+  },
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "@aws-sdk/client-bedrock-runtime": "^3.700.0",
+    "@hono/node-server": "^1.13.0",
+    "@nimble-way/nimble-js": "latest",
+    "dotenv": "^16.4.5",
+    "fast-xml-parser": "^4.5.0",
+    "hono": "^4.6.0",
+    "openai": "^4.80.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}

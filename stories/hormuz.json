@@ -1,0 +1,41 @@
+{
+  "title": "Strait of Hormuz proposal and regional escalation, Sep 2026",
+  "timezone": "America/New_York",
+  "keywords": ["Hormuz", "Iran", "Araghchi", "ceasefire", "proposal", "seven-day", "talks", "White House", "Senate", "war powers", "Houthi", "Riyadh", "Aramco", "tanker", "strait", "Saudi", "Pakistan", "Turkey", "Netanyahu", "sanctions", "oil", "Brent"],
+  "places": ["Tehran", "Riyadh", "Washington", "Jeddah", "Muscat", "Doha", "Bandar Abbas", "Red Sea", "Gulf of Oman"],
+  "latest_query": "Strait of Hormuz Iran proposal latest",
+  "seed_open_questions": [
+    "Has the White House responded to the seven-day proposal?",
+    "Is commercial shipping moving through the strait?",
+    "What damage from the Houthi strikes has been confirmed?",
+    "What was the outcome of the Saudi, Turkey, Pakistan military chiefs meeting?",
+    "How much has Brent crude moved today?"
+  ],
+  "fixed_sources": [
+    { "id": "reuters-world", "kind": "nimble-extract", "url": "https://www.reuters.com/world/", "parser": "src/act/fixed/page.ts" },
+    { "id": "ap-top", "kind": "nimble-extract", "url": "https://apnews.com/hub/world-news", "parser": "src/act/fixed/page.ts" },
+    { "id": "aljazeera-me", "kind": "nimble-extract", "url": "https://www.aljazeera.com/middle-east/", "parser": "src/act/fixed/page.ts" },
+    { "id": "toi-liveblog", "kind": "nimble-extract", "url": "https://www.timesofisrael.com/liveblog-september-25-2026/", "parser": "src/act/fixed/page.ts" },
+    { "id": "justsecurity", "kind": "nimble-extract", "url": "https://www.justsecurity.org/tag/early-edition/", "parser": "src/act/fixed/page.ts" },
+    { "id": "irna-en", "kind": "nimble-extract", "url": "https://en.irna.ir/", "parser": "src/act/fixed/page.ts" },
+    { "id": "presstv", "kind": "nimble-extract", "url": "https://www.presstv.ir/", "parser": "src/act/fixed/page.ts" },
+    { "id": "spa-en", "kind": "nimble-extract", "url": "https://www.spa.gov.sa/en", "parser": "src/act/fixed/page.ts" },
+    { "id": "whitehouse", "kind": "nimble-extract", "url": "https://www.whitehouse.gov/briefing-room/", "parser": "src/act/fixed/page.ts" },
+    { "id": "defense-gov", "kind": "nimble-extract", "url": "https://www.defense.gov/News/", "parser": "src/act/fixed/page.ts" }
+  ],
+  "source_weights": {
+    "reuters.com": 1.0,
+    "apnews.com": 1.0,
+    "defense.gov": 0.95,
+    "whitehouse.gov": 0.95,
+    "aljazeera.com": 0.85,
+    "justsecurity.org": 0.8,
+    "timesofisrael.com": 0.75,
+    "spa.gov.sa": 0.7,
+    "irna.ir": 0.6,
+    "presstv.ir": 0.5,
+    "default": 0.5,
+    "social": 0.25
+  },
+  "ttl_overrides": { "statement": 360, "event": 240 }
+}
