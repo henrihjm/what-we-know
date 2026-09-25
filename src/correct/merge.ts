@@ -72,7 +72,7 @@ const jsonSchema = {
 
 let client: OpenAI | null = null;
 export function openaiModel() {
-  return env.OPENAI_MODEL || "gpt-4.1";
+  return env.OPENAI_MODEL || "gpt-5.2";
 }
 
 function ledgerForPrompt(ledger: Ledger) {
@@ -106,7 +106,7 @@ export async function mergeLedger(story: StoryConfig, ledger: Ledger, evidence: 
     ];
     const r = await client.chat.completions.create({
       model,
-      temperature: 0.1,
+      ...(model.startsWith("gpt-5") ? {} : { temperature: 0.1 }),
       messages,
       response_format: { type: "json_schema", json_schema: { name: "ledger_merge", strict: true, schema: jsonSchema as never } },
     });
