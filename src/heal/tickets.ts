@@ -6,7 +6,7 @@ import { mkdirSync, writeFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { env } from "../config.js";
 import type { SourceHealth, StoryConfig } from "../types.js";
-import { rawtreeInsertSafe } from "../persist/rawtree.js";
+import { persistRows } from "../persist/index.js";
 import { fetchWithTimeout, nowIso, warn, errMsg, log } from "../util.js";
 
 export interface Ticket {
@@ -70,6 +70,6 @@ When the source succeeds again the loop resets fail_count and marks it healthy a
     }
   }
   if (fresh) log(`ticket written: ${t.path}`);
-  await rawtreeInsertSafe("tickets", [{ ...t, fresh }]);
+  await persistRows("tickets", storyKey, [{ ...t, fresh }]);
   return t;
 }

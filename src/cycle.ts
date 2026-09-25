@@ -13,7 +13,7 @@ import { splitToSnippets } from "./observe/split.js";
 import { triageSnippets, triageRetryBackend, triageBackendName } from "./observe/triage.js";
 import { mergeLedger, openaiModel, applyInvariants } from "./correct/merge.js";
 import { rewriteSummary } from "./correct/summary.js";
-import { rawtreeInsertSafe, rawtreeEnabled } from "./persist/rawtree.js";
+import { persistRows } from "./persist/index.js";
 import { loadLedger, saveLedgerCache } from "./persist/state.js";
 import { generateCard, cardPrompt, fluxConfigured } from "./render/flux.js";
 import { writeTicket } from "./heal/tickets.js";
@@ -130,15 +130,16 @@ export async function runCycle(story: StoryConfig, opts: CycleOptions): Promise<
   const ledgerTokensFull = estimateTokens(ledgerJson);
 
   // ---------- PERSIST ----------
-  const persist = !opts.dryRun && rawtreeEnabled();
+  const persist = !opts.dryRun;
+  const put = (table: Parameters<typeof persistRows>[0], rows: Record<string, unknown>[]) => persistRows(table, storyKey, rows);
   if (persist) {
     await Promise.all([
-      rawtreeInsertSafe("observations", observations.map((o) => row({ url: o.url, kind: o.kind, source_id: o.source_id, fetched_at: o.fetched_at, text_length: o.text.length, ok: o.ok, error: o.error ?? "", weight: o.weight, ms: o.ms }))),
-      rawtreeInsertSafe("triage", triaged.map((t) => row({ snippet_id: t.id, label: t.label.kind, claim_id: "claimId" in t.label ? t.label.claimId : "", label_raw: t.labelRaw, model: t.model, ms: t.ms, url: t.url, kind: t.kind, weight: t.weight, text_length: t.text.length }))),
-      rawtreeInsertSafe("ledger_versions", [row({ json: ledgerJson, claims_total: ledger.claims.length, claims_active: active.length, claims_superseded: ledger.claims.filter((c) => c.status === "superseded").length, claims_retracted: ledger.claims.filter((c) => c.status === "retracted").length, open_questions: ledger.open_questions.length, ledger_tokens: ledgerTokens, ledger_tokens_full: ledgerTokensFull, summary: ledger.summary, summary_by: summaryBy })]),
-      rawtreeInsertSafe("corrections", corrections.map((c) => row(c as unknown as Record<string, unknown>))),
-      rawtreeInsertSafe("tokens", usage.map((u) => row(u as unknown as Record<string, unknown>))),
-      rawtreeInsertSafe("source_health", sources.map((s) => row({ source_id: s.id, url: s.url, kind: s.kind, last_ok: s.last_ok ?? "", fail_count: s.fail_count, healthy: s.healthy, last_error: s.last_error ?? "" }))),
+      put("observations", observations.map((o) => row({ url: o.url, kind: o.kind, source_id: o.source_id, fetched_at: o.fetched_at, text_length: o.text.length, ok: o.ok, error: o.error ?? "", weight: o.weight, ms: o.ms }))),
+      put("triage", triaged.map((t) => row({ snippet_id: t.id, label: t.label.kind, claim_id: "claimId" in t.label ? t.label.claimId : "", label_raw: t.labelRaw, model: t.model, ms: t.ms, url: t.url, kind: t.kind, weight: t.weight, text_length: t.text.length }))),
+      put("ledger_versions", [row({ json: ledgerJson, claims_total: ledger.claims.length, claims_active: active.length, claims_superseded: ledger.claims.filter((c) => c.status === "superseded").length, claims_retracted: ledger.claims.filter((c) => c.status === "retracted").length, open_questions: ledger.open_questions.length, ledger_tokens: ledgerTokens, ledger_tokens_full: ledgerTokensFull, summary: ledger.summary, summary_by: summaryBy })]),
+      put("corrections", corrections.map((c) => row(c as unknown as Record<string, unknown>))),
+      put("tokens", usage.map((u) => row(u as unknown as Record<string, unknown>))),
+      put("source_health", sources.map((s) => row({ source_id: s.id, url: s.url, kind: s.kind, last_ok: s.last_ok ?? "", fail_count: s.fail_count, healthy: s.healthy, last_error: s.last_error ?? "" }))),
     ]);
   }
   saveLedgerCache(ledger, storyKey);
@@ -162,7 +163,7 @@ export async function runCycle(story: StoryConfig, opts: CycleOptions): Promise<
         cardPath = c.path;
         lastCardAt.set(storyKey, Date.now());
         log(`card generated: ${c.path} (${c.model}, ${c.ms} ms)`);
-        if (persist) await rawtreeInsertSafe("cards", [row({ path: c.path, model: c.model, ms: c.ms, reason: change.reason, numbers: numbers.join(" | "), prompt })]);
+        if (persist) await put("cards", [row({ path: c.path, model: c.model, ms: c.ms, reason: change.reason, numbers: numbers.join(" | "), prompt })]);
       } catch (e) {
         warn(`card generation failed: ${errMsg(e)}`);
       }
@@ -204,7 +205,7 @@ export async function runCycle(story: StoryConfig, opts: CycleOptions): Promise<
     budget_exceeded: skipped > 0,
     error: null,
   };
-  if (persist) await rawtreeInsertSafe("cycles", [row({ ...stats, merge_model: mergeModel, tickets, queries: queries.join(" || "), ledger_from: from, skipped_snippets: skipped, triage_errors: triageErrors })]);
+  if (persist) await put("cycles", [row({ ...stats, merge_model: mergeModel, tickets, queries: queries.join(" || "), ledger_from: from, skipped_snippets: skipped, triage_errors: triageErrors })]);
   console.log(
     `cycle ${cycle} | obs ${stats.observations} (${obsOk} ok) | snippets ${stats.snippets} | triage new ${counts.new} contradict ${counts.contradicts} dup ${counts.duplicate} irr ${counts.irrelevant}${skipped ? ` skipped ${skipped} (budget)` : ""}${triageErrors ? ` errors ${triageErrors}` : ""} | claims ${active.length} active | corrections ${corrections.length} | tokens ${stats.tokens.toLocaleString()} | ledger ~${ledgerTokens} tok | ${Math.round(ms / 1000)} s`,
   );

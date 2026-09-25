@@ -6,7 +6,8 @@ import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "
 import { resolve } from "node:path";
 import { parseArgs, loadStory, env } from "./config.js";
 import { runCycle } from "./cycle.js";
-import { rawtreeInsertSafe, rawtreeEnabled } from "./persist/rawtree.js";
+import { rawtreeEnabled } from "./persist/rawtree.js";
+import { persistRows } from "./persist/index.js";
 import { log, warn, errMsg, sleep, nowIso } from "./util.js";
 
 const args = parseArgs();
@@ -61,7 +62,7 @@ async function main() {
         cycles++;
       } catch (e) {
         warn(`cycle crashed (no ledger version written, will be redone): ${errMsg(e)}`);
-        if (!args.dryRun) await rawtreeInsertSafe("cycles", [{ story: storyKey, cycle: -1, ts: nowIso(), error: errMsg(e).slice(0, 500), ms: Date.now() - t0 }]);
+        if (!args.dryRun) await persistRows("cycles", storyKey, [{ story: storyKey, cycle: -1, ts: nowIso(), error: errMsg(e).slice(0, 500), ms: Date.now() - t0 }]);
       }
       if (args.once) break;
       const wait = Math.max(5000, args.interval * 1000 - (Date.now() - t0));

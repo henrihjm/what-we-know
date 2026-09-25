@@ -8,6 +8,7 @@ import { env, ALLOWED_STORIES } from "../config.js";
 import { rawtreeQuery, sqlStory, rawtreeEnabled } from "../persist/rawtree.js";
 import { cachePath } from "../persist/state.js";
 import { errMsg } from "../util.js";
+import { localStatus, localLedger, localCorrections, localSeries, localHealth, localCards, localSponsors } from "../persist/stats.js";
 
 const app = new Hono();
 const html = readFileSync(resolve(process.cwd(), "src/dashboard/index.html"), "utf8");
@@ -31,7 +32,9 @@ app.get("/", (c) => c.html(html));
 app.get("/api/stories", (c) => c.json({ stories: STORY_KEYS, rawtree: rawtreeEnabled() }));
 
 app.get("/api/status", async (c) => {
-  const s = sqlStory(storyOf(c));
+  const key = storyOf(c);
+  if (!rawtreeEnabled()) return c.json({ ...localStatus(key), rawtree: false, source: "local" });
+  const s = sqlStory(key);
   const [agg] = await q<{ cycles: number; since: string; last_ts: string }>(`SELECT count() AS cycles, min(ts) AS since, max(ts) AS last_ts FROM cycles WHERE story = ${s} AND cycle > 0 AND ts > now() - INTERVAL 7 DAY LIMIT 1`);
   const [last] = await q(`SELECT cycle, ts, ms, observations, snippets, claims_active, corrections, tokens, ledger_tokens, triage_model, summary_by, merge_model, budget_exceeded FROM cycles WHERE story = ${s} AND cycle > 0 ORDER BY cycle DESC LIMIT 1`);
   return c.json({ ...agg, last: last ?? null, rawtree: rawtreeEnabled() });
@@ -39,6 +42,10 @@ app.get("/api/status", async (c) => {
 
 app.get("/api/ledger", async (c) => {
   const key = storyOf(c);
+  if (!rawtreeEnabled()) {
+    const l = localLedger(key);
+    if (l) return c.json({ from: "local", ledger: l });
+  }
   const rows = await q<{ json: string }>(`SELECT json FROM ledger_versions WHERE story = ${sqlStory(key)} ORDER BY cycle DESC LIMIT 1`);
   if (rows[0]?.json) return c.json({ from: "rawtree", ledger: JSON.parse(rows[0].json) });
   const p = cachePath(key);
@@ -47,12 +54,14 @@ app.get("/api/ledger", async (c) => {
 });
 
 app.get("/api/corrections", async (c) => {
+  if (!rawtreeEnabled()) return c.json({ corrections: localCorrections(storyOf(c)) });
   const s = sqlStory(storyOf(c));
   const rows = await q(`SELECT cycle, ts, claim_id, from_text, to_text, reason, source FROM corrections WHERE story = ${s} AND ts > now() - INTERVAL 7 DAY ORDER BY ts DESC LIMIT 40`);
   return c.json({ corrections: rows });
 });
 
 app.get("/api/series", async (c) => {
+  if (!rawtreeEnabled()) return c.json(localSeries(storyOf(c)));
   const s = sqlStory(storyOf(c));
   const [obs, claims, tokens] = await Promise.all([
     q<{ cycle: number; n: number }>(`SELECT cycle, count() AS n FROM observations WHERE story = ${s} AND ts > now() - INTERVAL 7 DAY GROUP BY cycle ORDER BY cycle LIMIT 2000`),
@@ -65,18 +74,21 @@ app.get("/api/series", async (c) => {
 });
 
 app.get("/api/health", async (c) => {
+  if (!rawtreeEnabled()) return c.json({ sources: localHealth(storyOf(c)) });
   const s = sqlStory(storyOf(c));
   const rows = await q(`SELECT source_id, url, kind, healthy, fail_count, last_ok, last_error FROM source_health WHERE story = ${s} AND cycle = (SELECT max(cycle) FROM source_health WHERE story = ${s}) ORDER BY source_id LIMIT 200`);
   return c.json({ sources: rows });
 });
 
 app.get("/api/cards", async (c) => {
+  if (!rawtreeEnabled()) return c.json({ cards: localCards(storyOf(c)) });
   const s = sqlStory(storyOf(c));
   const rows = await q(`SELECT cycle, ts, path, reason, numbers, model FROM cards WHERE story = ${s} ORDER BY ts DESC LIMIT 5`);
   return c.json({ cards: rows });
 });
 
 app.get("/api/sponsors", async (c) => {
+  if (!rawtreeEnabled()) return c.json(localSponsors(storyOf(c)));
   const s = sqlStory(storyOf(c));
   const one = async (sql: string) => Number((await q<{ n: number }>(sql))[0]?.n ?? 0);
   const [liquid, fallback, merges, bedrock, nimble, cards, tickets, ...rows] = await Promise.all([

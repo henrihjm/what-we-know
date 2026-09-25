@@ -9,7 +9,23 @@ const one = async <T = Record<string, unknown>>(sql: string) => (await rawtreeQu
 const n = (v: unknown) => Number(v ?? 0);
 
 if (!rawtreeEnabled()) {
-  console.log("RAWTREE_API_KEY missing: no stats available");
+  const { localDemoStats } = await import("../src/persist/stats.js");
+  const d = localDemoStats(story);
+  console.log(`\nWHAT WE KNOW — ${story} (local event store; RawTree not configured)`);
+  console.log(`running since        ${d.since ?? "-"}`);
+  console.log(`cycles               ${d.cycles}   (median ${Math.round(d.median_ms / 1000)} s)`);
+  console.log(`observations         ${d.observations} fetched, ${d.observations_ok} ok`);
+  console.log(`snippets triaged     ${d.triaged}`);
+  for (const [m, c] of d.triage_by_model) console.log(`  by ${m.padEnd(40)} ${c}`);
+  console.log(`active claims now    ${d.claims_active} of ${d.claims_total} in ledger (cycle ${d.ledger_cycle})`);
+  console.log(`corrections          ${d.corrections}`);
+  for (const c of d.corrections_recent) console.log(`  ${c.claim_id}: "${c.from_text}" -> "${c.to_text}" (${c.reason})`);
+  console.log(`tokens per cycle     median ${Math.round(d.median_tokens).toLocaleString()}`);
+  for (const [p, v] of d.tokens_by_provider) console.log(`  ${p.padEnd(16)} ${v.calls} calls, ${v.t.toLocaleString()} tokens`);
+  console.log(`ledger size          median ~${Math.round(d.median_ledger)} tokens (target < 1500)`);
+  console.log(`summaries written by ${d.summary_by[0]} (${d.summary_by[1]})`);
+  console.log(`sources              ${d.healthy} healthy, ${d.unhealthy} unhealthy`);
+  console.log(`cards generated      ${d.cards}\n`);
   process.exit(0);
 }
 const cyc = await one<{ cycles: number; since: string; median_ms: number; median_tokens: number; median_ledger: number }>(`SELECT count() AS cycles, min(ts) AS since, median(ms) AS median_ms, median(tokens) AS median_tokens, median(ledger_tokens) AS median_ledger FROM cycles WHERE story = ${s} AND cycle > 0 LIMIT 1`);
