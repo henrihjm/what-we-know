@@ -86,7 +86,7 @@ async function refresh(){
     const provs=[...new Set(se.tokens.map(t=>t.provider))];const tc=[...new Set(se.tokens.map(t=>t.cycle))].sort((a,b)=>a-b);
     ch2.data.labels=tc;ch2.data.datasets=provs.map(p=>({label:p,data:tc.map(c=>se.tokens.filter(t=>t.cycle===c&&t.provider===p).reduce((a,t)=>a+t.tokens,0)),backgroundColor:provColor[p]||css('--muted'),borderRadius:3,borderSkipped:false}));ch2.update();
     $('health').innerHTML=he.sources.map(s=>`<div title="${esc(s.last_error||'')}"><span class="dot ${s.healthy?'ok':'bad'}"></span>${esc(s.source_id)}<br><span class="kv">${s.healthy?'ok '+rel(s.last_ok):'fails '+s.fail_count}</span></div>`).join('')||'<span class="kv">no health rows yet</span>';
-    if(ca.cards[0]){const c=ca.cards[0];$('card').innerHTML=`<img class="card" src="/${esc(c.path)}"><div class="kv">cycle ${c.cycle} · ${esc(c.reason)} · ${esc(c.numbers)}</div>`}
+    if(ca.cards[0]){const c=ca.cards[0];$('card').innerHTML=`<img class="card" src="/${esc(String(c.path).replace(/^out\//,''))}"><div class="kv">cycle ${c.cycle} · ${esc(c.reason)} · ${esc(c.numbers)}</div>`}
     $('sponsors').innerHTML=[['Liquid AI','snippets triaged',sp.liquid_triaged],['OpenAI','ledger merges',sp.openai_merges],['AWS Bedrock','summaries',sp.bedrock_summaries],['Nimble','pages + searches',sp.nimble_pages],['Tinybird RawTree','rows stored',sp.rawtree_rows],['Black Forest Labs','FLUX cards',sp.flux_cards],['Broccoli / tickets','fix tickets',sp.tickets],['OpenAI fallback','triage fallbacks',sp.openai_fallback_triaged]].map(([n,w,v])=>`<div><small>${n}</small><b>${(v??0).toLocaleString()}</b><small>${w}</small></div>`).join('');
   }catch(e){console.error(e)}
 }

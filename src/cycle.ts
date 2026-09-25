@@ -234,7 +234,11 @@ export function headlineNumbers(ledger: Ledger): string[] {
     .filter((c) => c.status === "active" && c.type === "number" && c.value != null)
     .sort((a, b) => b.confidence - a.confidence)
     .slice(0, 4)
-    .map((c) => `${c.value?.toLocaleString()} ${c.unit ?? ""}: ${c.text.slice(0, 50)}`);
+    .map((c) => {
+      // "At 2026-09-25T22:05Z, KEWR reported a wind gust of 31 mph." -> "KEWR wind gust 31 mph"
+      const label = c.text.replace(/^(at|as of)\s+\S+,?\s*/i, "").replace(/\b(reported|recorded|shows?|indicates?)\b\s*(an?|the)?\s*/gi, "").replace(/\s+of\s*\d[\d,.]*\s*\S*\.?$/, "").replace(/[.:]$/, "").trim();
+      return `${label.slice(0, 32)} ${c.value?.toLocaleString()} ${c.unit ?? ""}`.trim();
+    });
 }
 
 /** Dry-run / no-key merge: turn surviving snippets into claims without any model. */

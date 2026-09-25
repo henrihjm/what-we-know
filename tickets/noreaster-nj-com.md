@@ -1,13 +1,13 @@
-# Fix source nbc-boston for story noreaster
+# Fix source nj-com for story noreaster
 
 - **Story:** noreaster
-- **Source id:** nbc-boston
+- **Source id:** nj-com
 - **Kind:** nimble-extract
-- **URL:** https://www.nbcboston.com/weather/
+- **URL:** https://www.nj.com/weather/
 - **Parser:** `src/act/fixed/page.ts`
 - **Consecutive failures:** 3
-- **Last error:** nbc-boston timed out after 25000 ms
-- **Opened / last updated:** 2026-09-25T22:32:59.407Z (cycle 11)
+- **Last error:** nj-com timed out after 25000 ms
+- **Opened / last updated:** 2026-09-25T22:32:59.746Z (cycle 11)
 
 ## Task for the coding agent
 

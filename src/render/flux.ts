@@ -11,7 +11,8 @@ import { fetchWithTimeout, sleep } from "../util.js";
 export const fluxConfigured = () => Boolean(env.BFL_API_KEY);
 
 export function cardPrompt(title: string, timeEt: string, numbers: string[]) {
-  return `Minimal news situation card, flat design, large legible text. Title: ${title}. Time: ${timeEt}. Numbers: ${numbers.slice(0, 4).join("; ")}. No people, no logos.`;
+  const short = title.split(",")[0];
+  return `Minimal news situation card, flat design, large legible text. Title: ${short}. Time: ${timeEt}. Numbers: ${numbers.slice(0, 4).join("; ")}. No people, no logos.`;
 }
 
 export async function generateCard(story: string, cycle: number, prompt: string): Promise<{ path: string; model: string; ms: number }> {
