@@ -1,13 +1,13 @@
-# Fix source poweroutage-RI for story noreaster
+# Fix source ny1 for story noreaster
 
 - **Story:** noreaster
-- **Source id:** poweroutage-RI
+- **Source id:** ny1
 - **Kind:** nimble-extract
-- **URL:** https://poweroutage.us/area/state/rhode%20island
+- **URL:** https://ny1.com/nyc/all-boroughs/weather
 - **Parser:** `src/act/fixed/page.ts`
 - **Consecutive failures:** 3
-- **Last error:** poweroutage-RI timed out after 25000 ms
-- **Opened / last updated:** 2026-09-25T22:56:38.644Z (cycle 15)
+- **Last error:** ny1 timed out after 25000 ms
+- **Opened / last updated:** 2026-09-25T22:56:39.000Z (cycle 15)
 
 ## Task for the coding agent
 
