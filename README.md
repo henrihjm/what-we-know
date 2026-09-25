@@ -4,6 +4,10 @@ An agent that follows a developing news story for hours, keeps **one small "what
 
 Built at the Long Horizon Agents Hackathon (tokens& · AWS Builder Loft, San Francisco, 25 Sep 2026).
 
+![dashboard](docs/dashboard-top.jpg)
+
+![observations climb, the ledger stays flat](docs/dashboard-charts.jpg)
+
 ## The idea
 
 Long-horizon agents rot: observations, actions and stale context pile up until the history slows them down, costs more and makes their own state unreliable. This agent never keeps history. Every five minutes it:
@@ -54,6 +58,28 @@ Invariants: at most 60 active claims; superseded/retracted claims leave the ledg
 | **Broccoli** | Fix tickets are the hand-off point for a coding agent to repair a broken parser. If `BROCCOLI_API_URL`/`BROCCOLI_API_KEY` are set the ticket is POSTed there; otherwise the markdown file is the ticket. | `src/heal/tickets.ts` |
 
 Live counts for each of these are on the dashboard's "Who did what" strip and in `npm run demo-stats`.
+
+## Numbers from the live run (25 Sep 2026, 15:41 PT, `npm run demo-stats`)
+
+Nor'easter story, loop running since 15:07 PT on this laptop (earlier cycles before RawTree was configured are not counted):
+
+| | |
+|---|---|
+| cycles | 7 persisted (12 total), median 161 s |
+| observations fetched | 445 (425 ok) |
+| snippets triaged | 976: 117 by Liquid `lfm-2.5-2.6b`, 696 by OpenAI mini, 163 by the mini fallback while Liquid was rate-limited |
+| active claims now | 56 (75 in the ledger incl. recently superseded) |
+| corrections | 54, e.g. "KBOS gust 30 mph at 21:40Z" superseded by "32 mph at 22:05Z"; a coastal flood advisory's end time moved from 12:00Z to 08:00Z |
+| merges by OpenAI | 7 (`gpt-5.2`), one structured-output call per cycle |
+| ledger size | median ~2,500 tokens in the compact form the model reads (target was 1,500; see below) |
+| sources | 28 healthy, 1 ticket written today (`tickets/noreaster-nbc-boston.md`) |
+| cards by FLUX | 2 (`docs/card-noreaster.jpg`) |
+
+Hormuz story, same code, `stories/hormuz.json`: 2 cycles, 68 observations, 600 snippets triaged (39 by Liquid), 19 active claims, ledger ~1,050 tokens.
+
+![situation card](docs/card-noreaster.jpg)
+
+Honest notes: the nor'easter ledger sits above the 1,500-token target because the model keeps one claim per NWS product per area (56 active claims); the cap of 60 active claims holds and superseded claims are pruned after 30 minutes. Bedrock summaries are implemented but were not exercised (no AWS credentials on the day; OpenAI wrote the summaries, and the dashboard says so). Broccoli was not configured, so tickets are files plus RawTree rows.
 
 ## Run it
 
