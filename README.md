@@ -8,6 +8,8 @@ Built at the Long Horizon Agents Hackathon (tokens& · AWS Builder Loft, San Fra
 
 ![observations climb, the ledger stays flat](docs/dashboard-charts.jpg)
 
+The dashboard is one HTML file: hero summary, a diff of what changed with only the changed tokens in color, dense claims grouped by type with confidence as a hairline, one accent line on the chart, and a one-line footer of who did what. Press 1 or 2 to switch stories.
+
 ## The idea
 
 Long-horizon agents rot: observations, actions and stale context pile up until the history slows them down, costs more and makes their own state unreliable. This agent never keeps history. Every five minutes it:
@@ -154,4 +156,11 @@ tickets/            generated fix tickets (committed; they are part of the story
 
 ## Team
 
-Henri Mäkivirta — henri.makivirta@gmail.com
+Solo entry.
+
+- **Henri Mäkivirta** — Co-founder, Memo Technologies
+- SILTA accelerator (F26 cohort)
+- Email: henri.makivirta@gmail.com
+- GitHub: [@henrihjm](https://github.com/henrihjm)
+- X: [@TODO_X_HANDLE](https://x.com/TODO_X_HANDLE)
+- LinkedIn: [henrimakivirta](https://www.linkedin.com/in/henrimakivirta/)

@@ -4,94 +4,131 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>What We Know</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
-:root{--bg:#fcfcfb;--panel:#ffffff;--ink:#1a1a19;--ink2:#5a5a58;--muted:#8a8a88;--line:#e6e6e3;--c1:#2a78d6;--c2:#eb6834;--c3:#1baf7a;--c4:#eda100;--good:#008300;--bad:#c62828}
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#1a1a19;--panel:#232322;--ink:#f2f2f0;--ink2:#b8b8b4;--muted:#8a8a88;--line:#333331;--c1:#3987e5;--c2:#d95926;--c3:#199e70;--c4:#c98500;--good:#4caf50;--bad:#ef5350}}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;padding:16px}
-header{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:baseline;margin-bottom:14px}
-h1{font-size:20px;margin:0}h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink2);margin:0 0 8px}
-select{font:inherit;padding:4px 8px;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:6px}
-.kv{color:var(--ink2)}.kv b{color:var(--ink);font-weight:600}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}@media(max-width:900px){.grid{grid-template-columns:1fr}}
-.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:16px}
-p.summary{font-size:16px;line-height:1.5;margin:0}
-table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:5px 6px;border-bottom:1px solid var(--line);vertical-align:top}th{color:var(--ink2);font-weight:600}
-.num{text-align:right;font-variant-numeric:tabular-nums}.tag{display:inline-block;padding:1px 6px;border-radius:4px;font-size:11px;background:var(--line);color:var(--ink2)}
-.corr{padding:8px 0;border-bottom:1px solid var(--line)}.corr .from{color:var(--muted);text-decoration:line-through}.corr .to{font-weight:600}.corr .why{color:var(--ink2);font-size:12px}
-.health{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}.health div{border:1px solid var(--line);border-radius:6px;padding:5px 7px;font-size:12px}
-.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}.ok{background:var(--good)}.bad{background:var(--bad)}
-.sponsors{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}.sponsors div{border:1px solid var(--line);border-radius:8px;padding:8px 10px}.sponsors b{display:block;font-size:20px}.sponsors small{color:var(--ink2)}
-canvas{max-height:240px}img.card{width:100%;border-radius:8px;border:1px solid var(--line)}
-.oq li{margin:2px 0}.warn{color:var(--bad)}
+/* One accent. Everything else is a gray scale. Red exists only for a broken source. */
+:root{--bg:#0f0f10;--bg2:#141416;--ink:#ededef;--ink2:#9a9aa1;--ink3:#5e5e66;--line:#1f1f23;--line2:#2a2a30;--accent:#5e9eff;--accent-dim:rgba(94,158,255,.16);--bad:#f0625d}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){--bg:#fcfcfc;--bg2:#f5f5f6;--ink:#151517;--ink2:#6b6b73;--ink3:#a4a4ab;--line:#ececee;--line2:#dcdce0;--accent:#2a6fdb;--accent-dim:rgba(42,111,219,.12);--bad:#d33b36}}
+*{box-sizing:border-box}html{-webkit-font-smoothing:antialiased}
+body{margin:0;background:var(--bg);color:var(--ink);font:13.5px/1.5 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-feature-settings:"tnum" 1,"cv11" 1}
+a{color:inherit;text-decoration:none}
+.wrap{max-width:1180px;margin:0 auto;padding:0 24px 64px}
+/* top bar: story as tabs, quiet meta, a 1px refresh progress line */
+.bar{position:sticky;top:0;z-index:2;background:var(--bg);display:flex;align-items:center;gap:20px;height:52px;border-bottom:1px solid var(--line)}
+.brand{font-weight:600;letter-spacing:-.01em}
+.tabs{display:flex;gap:2px}.tab{padding:5px 9px;border-radius:6px;color:var(--ink2);cursor:pointer;font-weight:500}.tab:hover{background:var(--bg2);color:var(--ink)}.tab.on{color:var(--ink);background:var(--bg2)}
+.meta{margin-left:auto;color:var(--ink3);display:flex;gap:16px;white-space:nowrap}.meta b{color:var(--ink2);font-weight:500}
+.progress{position:absolute;left:0;bottom:-1px;height:1px;background:var(--accent);width:0;opacity:.8;transition:width 1s linear}
+/* hero: the summary is the product */
+.hero{padding:40px 0 28px;border-bottom:1px solid var(--line)}
+.hero h1{font-size:12px;font-weight:500;color:var(--ink3);letter-spacing:.04em;text-transform:uppercase;margin:0 0 14px}
+.summary{font-size:21px;line-height:1.45;font-weight:400;letter-spacing:-.012em;margin:0;max-width:880px}
+.stat{display:flex;gap:28px;margin-top:22px;color:var(--ink2)}.stat b{color:var(--ink);font-weight:500}.stat .chg{color:var(--accent)}
+.cols{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:56px;padding-top:32px}
+@media(max-width:900px){.cols{grid-template-columns:1fr;gap:32px}.meta{display:none}}
+h2{font-size:12px;font-weight:500;color:var(--ink3);letter-spacing:.04em;text-transform:uppercase;margin:0 0 12px;display:flex;align-items:baseline;gap:10px}h2 span{color:var(--ink3);font-weight:400;text-transform:none;letter-spacing:0}
+section{margin-bottom:44px}
+/* claims: dense rows, confidence as a hairline, type as a muted word, sources on hover */
+.claim{display:grid;grid-template-columns:1fr auto;gap:16px;padding:8px 0;border-top:1px solid var(--line);align-items:start}
+.claim:first-child{border-top:0}.claim .t{color:var(--ink)}.claim .r{color:var(--ink3);white-space:nowrap;text-align:right;font-size:12px}
+.claim .v{color:var(--ink);font-weight:500;margin-left:8px}.claim .src{display:none;color:var(--ink3);font-size:12px;margin-top:2px}
+.claim:hover .src{display:block}.claim .conf{display:block;width:28px;height:2px;background:var(--line2);margin:7px 0 0 auto}
+.claim .conf i{display:block;height:2px;background:var(--ink2)}
+.group{color:var(--ink3);font-size:12px;padding:14px 0 4px}
+/* corrections: a diff. old is struck and muted; new is the only accented text on the page. */
+.corr{padding:12px 0;border-top:1px solid var(--line)}.corr:first-child{border-top:0}
+.corr .when{color:var(--ink3);font-size:12px;margin-bottom:3px}.corr .old{color:var(--ink3);text-decoration:line-through;text-decoration-color:var(--ink3)}
+.corr .new{color:var(--ink);font-weight:500}.corr .new mark{background:var(--accent-dim);color:var(--accent);padding:0 3px;border-radius:3px}
+.corr .why{color:var(--ink2);font-size:12px;margin-top:3px}
+.oq li{color:var(--ink2);margin:4px 0;padding-left:14px;position:relative}.oq li:before{content:"?";position:absolute;left:0;color:var(--ink3)}
+/* chart: one accented line, one white line, no grid noise */
+.chart{height:180px}.legend{display:flex;gap:16px;color:var(--ink3);font-size:12px;margin-top:6px}.legend i{display:inline-block;width:14px;height:2px;vertical-align:middle;margin-right:6px}
+.health{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12px;color:var(--ink3)}.health span:before{content:"";display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--ink3);margin-right:5px;vertical-align:middle}.health span.bad{color:var(--bad)}.health span.bad:before{background:var(--bad)}
+.card{width:100%;border-radius:8px;border:1px solid var(--line);display:block}
+.foot{color:var(--ink3);font-size:12px;border-top:1px solid var(--line);padding-top:16px;display:flex;flex-wrap:wrap;gap:6px 22px}.foot b{color:var(--ink2);font-weight:500}
+.empty{color:var(--ink3)}
+@media (prefers-reduced-motion: reduce){.progress{transition:none}}
 </style>
 </head>
 <body>
-<header>
-  <h1>What We Know</h1>
-  <select id="story"></select>
-  <span class="kv">cycle <b id="cycle">–</b></span>
-  <span class="kv">running since <b id="since">–</b></span>
-  <span class="kv">cycles <b id="cycles">–</b></span>
-  <span class="kv">last cycle <b id="lastms">–</b></span>
-  <span class="kv" id="rt"></span>
-</header>
-<div class="grid">
-  <div>
-    <div class="panel"><h2>Summary</h2><p class="summary" id="summary">Waiting for the first ledger…</p><div class="kv" style="margin-top:6px" id="summaryBy"></div></div>
-    <div class="panel"><h2>Claims <span class="tag" id="claimCount"></span></h2><table><thead><tr><th>claim</th><th>type</th><th class="num">value</th><th class="num">conf</th><th>confirmed</th><th class="num">src</th></tr></thead><tbody id="claims"></tbody></table></div>
-    <div class="panel"><h2>Open questions</h2><ul class="oq" id="oq"></ul></div>
+<div class="wrap">
+  <div class="bar">
+    <span class="brand">What We Know</span>
+    <nav class="tabs" id="tabs"></nav>
+    <div class="meta"><span>cycle <b id="cycle">–</b></span><span>updated <b id="updated">–</b></span><span>every <b>5 min</b></span></div>
+    <div class="progress" id="progress"></div>
   </div>
-  <div>
-    <div class="panel"><h2>Corrections</h2><div id="corrections"></div></div>
-    <div class="panel"><h2>Observations pile up, the ledger stays flat</h2><canvas id="chart1"></canvas></div>
-    <div class="panel"><h2>Tokens per cycle by model</h2><canvas id="chart2"></canvas></div>
-    <div class="panel"><h2>Source health</h2><div class="health" id="health"></div></div>
-    <div class="panel"><h2>Latest situation card</h2><div id="card"><span class="kv">no card yet</span></div></div>
+
+  <div class="hero">
+    <h1 id="title">–</h1>
+    <p class="summary" id="summary">Waiting for the first ledger…</p>
+    <div class="stat" id="stat"></div>
   </div>
+
+  <div class="cols">
+    <div>
+      <section><h2>Claims <span id="claimCount"></span></h2><div id="claims"></div></section>
+      <section><h2>Open questions</h2><ul class="oq" id="oq" style="margin:0;padding:0;list-style:none"></ul></section>
+    </div>
+    <div>
+      <section><h2>What changed <span id="corrCount"></span></h2><div id="corrections"></div></section>
+      <section><h2>Observations in, claims kept</h2><div class="chart"><canvas id="chart1"></canvas></div><div class="legend"><span><i style="background:var(--accent)"></i>cumulative observations</span><span><i style="background:var(--ink)"></i>active claims</span></div></section>
+      <section><h2>Sources <span id="healthCount"></span></h2><div class="health" id="health"></div></section>
+      <section id="cardSec" style="display:none"><h2>Latest card</h2><img class="card" id="card" alt="situation card"><div class="empty" id="cardMeta" style="font-size:12px;margin-top:6px"></div></section>
+    </div>
+  </div>
+
+  <div class="foot" id="foot"></div>
 </div>
-<div class="panel"><h2>Who did what</h2><div class="sponsors" id="sponsors"></div></div>
 <script>
 const $=id=>document.getElementById(id);
 const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
-let story=new URLSearchParams(location.search).get('story')||'noreaster';
-const rel=iso=>{if(!iso)return '–';const m=(Date.now()-new Date(iso))/60000;if(m<1)return 'just now';if(m<60)return Math.round(m)+' min ago';return (m/60).toFixed(1)+' h ago'};
 const esc=s=>String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
-const j=async p=>{const r=await fetch(p+(p.includes('?')?'&':'?')+'story='+story);return r.json()};
-let ch1,ch2;
-function mkCharts(){
-  const grid={color:css('--line')},ticks={color:css('--ink2')};
-  Chart.defaults.color=css('--ink2');Chart.defaults.font.family=getComputedStyle(document.body).fontFamily;
-  ch1=new Chart($('chart1'),{type:'line',data:{labels:[],datasets:[
-    {label:'cumulative observations',data:[],borderColor:css('--c1'),backgroundColor:css('--c1'),borderWidth:2,pointRadius:0,tension:.2},
-    {label:'active claims in ledger',data:[],borderColor:css('--c2'),backgroundColor:css('--c2'),borderWidth:2,pointRadius:0,tension:.2}]},
-    options:{animation:false,interaction:{mode:'index',intersect:false},plugins:{legend:{position:'bottom'}},scales:{x:{title:{display:true,text:'cycle'},grid:{display:false},ticks},y:{beginAtZero:true,grid,ticks}}}});
-  ch2=new Chart($('chart2'),{type:'bar',data:{labels:[],datasets:[]},options:{animation:false,interaction:{mode:'index',intersect:false},plugins:{legend:{position:'bottom'}},scales:{x:{stacked:true,title:{display:true,text:'cycle'},grid:{display:false},ticks},y:{stacked:true,beginAtZero:true,grid,ticks}}}});
-}
-const provColor={openai:css('--c1'),liquid:css('--c2'),bedrock:css('--c3'),'openai-fallback':css('--c4')};
-async function refresh(){
-  try{
-    const [st,led,co,se,he,ca,sp]=await Promise.all([j('/api/status'),j('/api/ledger'),j('/api/corrections'),j('/api/series'),j('/api/health'),j('/api/cards'),j('/api/sponsors')]);
-    $('rt').innerHTML=st.rawtree?'':'<span class="warn">RawTree not configured: showing local cache only</span>';
-    const L=led.ledger;$('cycle').textContent=L?L.cycle:'–';$('since').textContent=st.since?new Date(st.since).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})+' ('+rel(st.since)+')':'–';
-    $('cycles').textContent=st.cycles??'–';$('lastms').textContent=st.last?Math.round(st.last.ms/1000)+' s':'–';
-    if(L){$('summary').textContent=L.summary||'(empty)';$('summaryBy').textContent=st.last?('summary by '+st.last.summary_by+' · merge by '+st.last.merge_model+' · triage by '+st.last.triage_model+' · ledger ~'+st.last.ledger_tokens+' tokens'):'';
-      const act=L.claims.filter(c=>c.status==='active').sort((a,b)=>b.confidence-a.confidence);$('claimCount').textContent=act.length+' active';
-      $('claims').innerHTML=act.map(c=>`<tr><td>${esc(c.text)}</td><td><span class="tag">${c.type}</span></td><td class="num">${c.value!=null?esc(c.value.toLocaleString()+' '+(c.unit||'')):''}</td><td class="num">${c.confidence.toFixed(2)}</td><td>${rel(c.last_confirmed)}</td><td class="num">${c.sources.length}</td></tr>`).join('');
-      $('oq').innerHTML=L.open_questions.map(q=>`<li>${esc(q)}</li>`).join('')||'<li class="kv">none</li>';}
-    $('corrections').innerHTML=co.corrections.length?co.corrections.map(c=>`<div class="corr"><div><span class="tag">${esc(c.claim_id)}</span> <span class="kv">cycle ${c.cycle} · ${rel(c.ts)}</span></div><div class="from">${esc(c.from_text)}</div><div class="to">${esc(c.to_text)}</div><div class="why">${esc(c.reason)} — ${esc(c.source)}</div></div>`).join(''):'<span class="kv">no corrections yet</span>';
-    const cycles=[...new Set([...se.observations.map(o=>o.cycle),...se.claims.map(c=>c.cycle)])].sort((a,b)=>a-b);
-    ch1.data.labels=cycles;const om=new Map(se.observations.map(o=>[o.cycle,o.cumulative])),cm=new Map(se.claims.map(c=>[c.cycle,c.active]));
-    ch1.data.datasets[0].data=cycles.map(c=>om.get(c)??null);ch1.data.datasets[1].data=cycles.map(c=>cm.get(c)??null);ch1.update();
-    const provs=[...new Set(se.tokens.map(t=>t.provider))];const tc=[...new Set(se.tokens.map(t=>t.cycle))].sort((a,b)=>a-b);
-    ch2.data.labels=tc;ch2.data.datasets=provs.map(p=>({label:p,data:tc.map(c=>se.tokens.filter(t=>t.cycle===c&&t.provider===p).reduce((a,t)=>a+t.tokens,0)),backgroundColor:provColor[p]||css('--muted'),borderRadius:3,borderSkipped:false}));ch2.update();
-    $('health').innerHTML=he.sources.map(s=>`<div title="${esc(s.last_error||'')}"><span class="dot ${s.healthy?'ok':'bad'}"></span>${esc(s.source_id)}<br><span class="kv">${s.healthy?'ok '+rel(s.last_ok):'fails '+s.fail_count}</span></div>`).join('')||'<span class="kv">no health rows yet</span>';
-    if(ca.cards[0]){const c=ca.cards[0];$('card').innerHTML=`<img class="card" src="/${esc(String(c.path).replace(/^out\//,''))}"><div class="kv">cycle ${c.cycle} · ${esc(c.reason)} · ${esc(c.numbers)}</div>`}
-    $('sponsors').innerHTML=[['Liquid AI','snippets triaged',sp.liquid_triaged],['OpenAI','ledger merges',sp.openai_merges],['AWS Bedrock','summaries',sp.bedrock_summaries],['Nimble','pages + searches',sp.nimble_pages],['Tinybird RawTree','rows stored',sp.rawtree_rows],['Black Forest Labs','FLUX cards',sp.flux_cards],['Broccoli / tickets','fix tickets',sp.tickets],['OpenAI fallback','triage fallbacks',sp.openai_fallback_triaged]].map(([n,w,v])=>`<div><small>${n}</small><b>${(v??0).toLocaleString()}</b><small>${w}</small></div>`).join('');
-  }catch(e){console.error(e)}
-}
-(async()=>{const s=await fetch('/api/stories').then(r=>r.json());$('story').innerHTML=s.stories.map(x=>`<option ${x===story?'selected':''}>${x}</option>`).join('');
-  $('story').onchange=e=>{story=e.target.value;history.replaceState(null,'','?story='+story);refresh()};mkCharts();refresh();setInterval(refresh,30000)})();
+const rel=iso=>{if(!iso)return '–';const m=(Date.now()-new Date(iso))/60000;if(m<1)return 'now';if(m<60)return Math.round(m)+' min';if(m<1440)return (m/60).toFixed(1)+' h';return Math.round(m/1440)+' d'};
+const clock=iso=>iso?new Date(iso).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}):'–';
+let story=new URLSearchParams(location.search).get('story')||'noreaster';
+const j=async p=>(await fetch(p+(p.includes('?')?'&':'?')+'story='+story)).json();
+const TITLES={noreaster:"Nor'easter, US Northeast",hormuz:"Strait of Hormuz"};
+/* highlight what differs between old and new text: numbers and times get the accent */
+const TOK=/\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2})?Z)?|\d{1,2}:\d{2}(?:Z|\s?[AP]M)?|\d[\d,.]*\s?(?:mph|%|customers|flights|bbl|vessels|barrels|hours?|minutes?|km\/h|ft|inches)?/g;
+function diffMark(oldT,newT){const old=new Set(oldT.match(TOK)||[]);return esc(newT).replace(TOK,m=>old.has(m)?m:'<mark>'+m+'</mark>')}
+let ch;
+function mkChart(){Chart.defaults.font.family='Inter, sans-serif';Chart.defaults.font.size=11;ch=new Chart($('chart1'),{type:'line',data:{labels:[],datasets:[
+ {data:[],borderColor:css('--accent'),borderWidth:1.5,pointRadius:0,tension:.25},{data:[],borderColor:css('--ink'),borderWidth:1.5,pointRadius:0,tension:.25}]},
+ options:{animation:false,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{display:false},tooltip:{backgroundColor:css('--bg2'),titleColor:css('--ink2'),bodyColor:css('--ink'),borderColor:css('--line2'),borderWidth:1,displayColors:false,callbacks:{title:i=>'cycle '+i[0].label,label:i=>(i.datasetIndex?'active claims ':'observations ')+i.formattedValue}}},
+ scales:{x:{grid:{display:false},border:{color:css('--line')},ticks:{color:css('--ink3'),maxTicksLimit:8}},y:{beginAtZero:true,grid:{color:css('--line')},border:{display:false},ticks:{color:css('--ink3'),maxTicksLimit:4}}}}})}
+let tick=0;
+async function refresh(){try{
+ const [st,led,co,se,he,ca,sp]=await Promise.all([j('/api/status'),j('/api/ledger'),j('/api/corrections'),j('/api/series'),j('/api/health'),j('/api/cards'),j('/api/sponsors')]);
+ const L=led.ledger;document.title=(L?L.summary.slice(0,60)+'… · ':'')+'What We Know';
+ $('title').textContent=TITLES[story.replace(/-.*$/,'')]||story;
+ $('cycle').textContent=L?L.cycle:'–';$('updated').textContent=L?clock(L.updated_at)+(rel(L.updated_at)==='now'?' · just now':' · '+rel(L.updated_at)+' ago'):'–';
+ if(L){$('summary').textContent=L.summary||'(no summary yet)';
+  const act=L.claims.filter(c=>c.status==='active');
+  const obsTotal=se.observations.length?se.observations[se.observations.length-1].cumulative:0;
+  $('stat').innerHTML=`<span><b>${obsTotal.toLocaleString()}</b> observations in</span><span><b>${act.length}</b> claims kept</span><span class="chg"><b style="color:inherit">${co.corrections.length}</b> corrections</span><span><b>~${(st.last?.ledger_tokens??0).toLocaleString()}</b> tokens of state</span>`;
+  const order=['warning','number','event','forecast','statement'];const groups=order.map(t=>[t,act.filter(c=>c.type===t).sort((a,b)=>b.confidence-a.confidence)]).filter(g=>g[1].length);
+  $('claimCount').textContent=act.length+' active';
+  $('claims').innerHTML=groups.map(([t,cs])=>`<div class="group">${t}s · ${cs.length}</div>`+cs.map(c=>`<div class="claim"><div><span class="t">${esc(c.text)}</span>${c.value!=null&&!c.text.includes(String(c.value))?`<span class="v">${esc(c.value.toLocaleString())} ${esc(c.unit||'')}</span>`:''}<div class="src">${c.sources.map(s=>esc(s.replace(/^https?:\/\/(www\.)?/,'').split('/')[0])).join(' · ')}</div></div><div class="r" title="confirmed ${esc(c.last_confirmed)} · confidence ${c.confidence.toFixed(2)}">${rel(c.last_confirmed)}<span class="conf"><i style="width:${Math.round(c.confidence*100)}%"></i></span></div></div>`).join('')).join('');
+  $('oq').innerHTML=L.open_questions.map(q=>`<li>${esc(q)}</li>`).join('')||'<li class="empty">none</li>';}
+ $('corrCount').textContent=co.corrections.length?co.corrections.length+' total':'';
+ const more=Math.max(0,co.corrections.length-10);
+ $('corrections').innerHTML=co.corrections.length?co.corrections.slice(0,10).map(c=>`<div class="corr"><div class="when">cycle ${c.cycle} · ${rel(c.ts)==='now'?'just now':rel(c.ts)+' ago'} · ${esc(String(c.source||'').replace(/^https?:\/\/(www\.)?/,'').split('/')[0])}</div><div class="old">${esc(c.from_text)}</div><div class="new">${diffMark(c.from_text,c.to_text)}</div><div class="why">${esc(c.reason)}</div></div>`).join('')+(more?`<div class="corr empty">and ${more} earlier</div>`:''):'<div class="empty">nothing has changed yet</div>';
+ const cycles=[...new Set([...se.observations.map(o=>o.cycle),...se.claims.map(c=>c.cycle)])].sort((a,b)=>a-b);
+ const om=new Map(se.observations.map(o=>[o.cycle,o.cumulative])),cm=new Map(se.claims.map(c=>[c.cycle,c.active]));
+ ch.data.labels=cycles;ch.data.datasets[0].data=cycles.map(c=>om.get(c)??null);ch.data.datasets[1].data=cycles.map(c=>cm.get(c)??null);ch.update();
+ const bad=he.sources.filter(s=>!s.healthy);$('healthCount').textContent=he.sources.length?`${he.sources.length-bad.length} ok${bad.length?', '+bad.length+' failing':''}`:'';
+ $('health').innerHTML=he.sources.map(s=>`<span class="${s.healthy?'':'bad'}" title="${esc(s.healthy?'ok '+rel(s.last_ok)+' ago':s.last_error||'failing')}">${esc(s.source_id)}</span>`).join('')||'<span class="empty">no data yet</span>';
+ if(ca.cards&&ca.cards[0]){const c=ca.cards[0];$('cardSec').style.display='';$('card').src='/'+String(c.path).replace(/^out\//,'');$('cardMeta').textContent=`cycle ${c.cycle} · ${c.reason} · FLUX`;}
+ $('foot').innerHTML=[['Liquid AI',sp.liquid_triaged,'snippets triaged'],['OpenAI',sp.openai_merges,'merges'],['Nimble',sp.nimble_pages,'pages'],['RawTree',sp.rawtree_rows,'rows'],['FLUX',sp.flux_cards,'cards'],['tickets',sp.tickets,'written'],['Bedrock',sp.bedrock_summaries,'summaries']].map(([n,v,w])=>`<span><b>${n}</b> ${(v??0).toLocaleString()} ${w}</span>`).join('');
+}catch(e){console.error(e)}}
+function tabs(){fetch('/api/stories').then(r=>r.json()).then(s=>{const list=s.stories.filter(x=>!/-(sandbox|dry)$/.test(x)||x===story);$('tabs').innerHTML=list.map((x,i)=>`<a class="tab ${x===story?'on':''}" data-s="${x}" title="press ${i+1}">${TITLES[x]||x}</a>`).join('');
+ $('tabs').querySelectorAll('.tab').forEach(t=>t.onclick=()=>go(t.dataset.s));document.onkeydown=e=>{const n=Number(e.key);if(n>=1&&n<=list.length&&!e.metaKey)go(list[n-1])}})}
+function go(s){story=s;history.replaceState(null,'','?story='+s);tabs();tick=0;refresh()}
+mkChart();tabs();refresh();
+setInterval(()=>{tick=(tick+1)%30;$('progress').style.width=(tick/29*100)+'%';if(tick===0)refresh()},1000);
 </script>
 </body>
 </html>
